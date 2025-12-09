@@ -9,4 +9,4 @@ COPY normalizer_service ./normalizer_service
 
 ENV PYTHONPATH=/code
 
-CMD ["uvicorn", "normalizer_service.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "normalizer_service.main:normalizer_app", "--host", "0.0.0.0", "--port", "8000"]

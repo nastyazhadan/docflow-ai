@@ -27,8 +27,36 @@ services:
     networks:
       - app-net
 
+  cleaner-service:
+    build:
+      context: ./services/cleaner
+    restart: unless-stopped
+    ports:
+      - "8001:8000"
+    networks:
+      - app-net
+
+  normalizer-service:
+    build:
+      context: ./services/normalizer
+    restart: unless-stopped
+    ports:
+      - "8002:8000"
+    networks:
+      - app-net
+
+  indexer-service:
+    build:
+      context: ./services/indexer
+    restart: unless-stopped
+    ports:
+      - "8003:8000"
+    networks:
+      - app-net
+
 networks:
   app-net:
+    driver: bridge
 
 volumes:
   n8n_data:

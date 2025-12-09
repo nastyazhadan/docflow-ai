@@ -5,8 +5,8 @@ WORKDIR /code
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY cleaner_service ./cleaner_service
+COPY indexer_service ./indexer_service
 
 ENV PYTHONPATH=/code
 
-CMD ["uvicorn", "cleaner_service.main:cleaner_app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "indexer_service.main:indexer_app", "--host", "0.0.0.0", "--port", "8000"]
