@@ -1,4 +1,34 @@
-FROM ubuntu:latest
-LABEL authors="nasty"
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - NODE_ENV=production
+    volumes:
+      - n8n_data:/home/node/.n8n
+    networks:
+      - app-net
 
-ENTRYPOINT ["top", "-b"]
+  scraper-service:
+    build:
+      context: ./services/scraper
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - SCRAPER_ROOT_DIR=/data/docs
+    volumes:
+      - ./data:/data/docs:ro
+    networks:
+      - app-net
+
+networks:
+  app-net:
+
+volumes:
+  n8n_data:
