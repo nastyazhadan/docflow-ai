@@ -1,8 +1,8 @@
 from fastapi.testclient import TestClient
 
-from indexer_service.main import app
+from indexer_service.main import indexer_app
 
-client = TestClient(app)
+client = TestClient(indexer_app)
 
 
 def test_index_endpoint_returns_count() -> None:

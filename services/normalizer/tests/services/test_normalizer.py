@@ -1,8 +1,8 @@
 from fastapi.testclient import TestClient
 
-from normalizer_service.main import app
+from normalizer_service.main import normalizer_app
 
-client = TestClient(app)
+client = TestClient(normalizer_app)
 
 
 def test_normalize_endpoint_creates_documents() -> None:

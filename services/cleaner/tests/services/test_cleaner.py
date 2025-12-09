@@ -1,8 +1,8 @@
 from fastapi.testclient import TestClient
 
-from cleaner_service.main import app
+from cleaner_service.main import cleaner_app
 
-client = TestClient(app)
+client = TestClient(cleaner_app)
 
 
 def test_clean_endpoint_echoes_files() -> None:
