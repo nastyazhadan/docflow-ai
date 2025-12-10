@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, List
+from urllib.parse import urlparse
 
 from normalizer_service.models.dto import (
     Metadata,
@@ -126,10 +127,34 @@ class TextNormalizer:
     @staticmethod
     def _derive_title(item: NormalizerItemIn) -> str:
         """
-        Простейшая эвристика: берём имя файла из path.
+        Эвристика заголовка:
+
+        - если есть path -> берём имя файла из него
+        - если path нет, но есть url -> берём последний сегмент пути,
+          а если он пустой — целиком URL
+        - иначе возвращаем "document"
         """
-        name = Path(item.path).name
-        return name or item.path
+        # 1) Файлы: имя файла из path
+        if item.path:
+            name = Path(item.path).name
+            if name:
+                return name
+
+        # 2) HTTP: пробуем вытащить что-то из URL
+        if item.url:
+            url_str = str(item.url)
+            parsed = urlparse(url_str)
+
+            # путь без хвостового слэша, берем последний сегмент
+            path = parsed.path.rstrip("/") or "/"
+            last_segment = path.split("/")[-1]
+
+            if last_segment:
+                return last_segment
+            return url_str  # fallback — весь URL
+
+        # 3) Полный fallback
+        return "document"
 
     def normalize(self, items: Iterable[NormalizerItemIn]) -> List[NormalizedDocument]:
         """
@@ -159,9 +184,19 @@ class TextNormalizer:
             for idx, chunk_text in enumerate(chunks):
                 external_id = f"{item.source}:{item.path}:{idx}"
 
+                # path должен быть строкой:
+                # - для файлов берём item.path
+                # - для HTTP подставляем url (или пустую строку как последний fallback)
+                if item.path is not None:
+                    meta_path = item.path
+                elif item.url is not None:
+                    meta_path = str(item.url)
+                else:
+                    meta_path = ""
+
                 metadata = Metadata(
                     source=item.source,
-                    path=item.path,
+                    path=meta_path,
                     url=item.url,
                     title=title,
                     created_at=created_at,
