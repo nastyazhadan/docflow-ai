@@ -1,21 +1,18 @@
-import logging
-from typing import Sequence
+from __future__ import annotations
 
-from indexer_service.models.dto import Document
+from typing import Iterable, List, Dict
 
-logger = logging.getLogger("indexer_service")
-logger.setLevel(logging.INFO)
+from indexer_service.models.dto import NormalizedDocument
 
 
-class Indexer:
+def build_ingest_payload(
+        items: Iterable[NormalizedDocument],
+) -> Dict[str, List[dict]]:
     """
-    Минимальный индексатор: вместо реального отправления в Core API
-    пока просто логирует документы.
-    """
+    Преобразует список документов из normalizer формата в payload для
+    Core API /spaces/{id}/ingest.
 
-    @staticmethod
-    def index_documents(space_id: str, documents: Sequence[Document]) -> int:
-        logger.info("Indexing %d documents into space '%s'", len(documents), space_id)
-        for doc in documents:
-            logger.info("DOC id=%s path=%s len=%d", doc.id, doc.path, len(doc.content))
-        return len(documents)
+    Алгоритмическая сложность O(n) по числу документов.
+    """
+    documents: List[dict] = [item.model_dump() for item in items]
+    return {"documents": documents}
