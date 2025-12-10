@@ -1,7 +1,9 @@
+from typing import Any
+
 from pydantic import BaseModel
 
 
-class Document(BaseModel):
+class NormalizedDocument(BaseModel):
     id: str
     path: str
     content: str
@@ -9,8 +11,14 @@ class Document(BaseModel):
 
 class IndexRequest(BaseModel):
     space_id: str
-    documents: list[Document]
+    documents: list[NormalizedDocument]
 
 
-class IngestRequest(BaseModel):
-    documents: list[Document]
+class IngestDocument(BaseModel):
+    external_id: str
+    text: str
+    metadata: dict[str, Any]
+
+
+class IngestPayload(BaseModel):
+    documents: list[IngestDocument]
