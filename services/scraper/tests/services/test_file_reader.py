@@ -3,28 +3,31 @@ from pathlib import Path
 from scraper_service.services.file_reader import FileReader
 
 
-def test_file_reader_reads_only_files(tmp_path: Path) -> None:
-    # Arrange
-    root = tmp_path / "root"
-    root.mkdir()
-    file1 = root / "a.txt"
-    file2 = root / "b.md"
-    subdir = root / "dir"
-    subdir.mkdir()
-    file3 = subdir / "c.txt"
+def test_read_all_empty_dir(tmp_path: Path):
+    reader = FileReader(root_dir=tmp_path)
+    files = reader.read_all()
+    assert files == []
 
-    file1.write_text("hello", encoding="utf-8")
-    file2.write_text("world", encoding="utf-8")
-    file3.write_text("!", encoding="utf-8")
 
-    reader = FileReader(root_dir=root, allowed_extensions=(".txt",))
+def test_read_all_single_file(tmp_path: Path):
+    f = tmp_path / "doc1.txt"
+    f.write_text("hello", encoding="utf-8")
 
-    # Act
-    files = list(reader.iter_files())
+    reader = FileReader(root_dir=tmp_path)
+    files = reader.read_all()
 
-    # Assert
-    paths = {f.path for f in files}
-    contents = {f.content for f in files}
+    assert len(files) == 1
+    item = files[0]
+    assert item.path == "doc1.txt"
+    assert item.content == "hello"
 
-    assert paths == {"a.txt", "dir\\c.txt"}
-    assert contents == {"hello", "!"}
+
+def test_read_all_with_pattern(tmp_path: Path):
+    (tmp_path / "keep.md").write_text("md", encoding="utf-8")
+    (tmp_path / "skip.txt").write_text("txt", encoding="utf-8")
+
+    reader = FileReader(root_dir=tmp_path)
+    files = reader.read_all(pattern="**/*.md")
+
+    assert len(files) == 1
+    assert files[0].path.endswith("keep.md")

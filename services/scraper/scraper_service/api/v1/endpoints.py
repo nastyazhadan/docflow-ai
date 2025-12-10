@@ -1,8 +1,17 @@
+from __future__ import annotations
+
 from fastapi import APIRouter, Depends
 
 from scraper_service.core.config import get_settings
-from scraper_service.models.dto import ScrapeResponse, FileContent
+from scraper_service.models.dto import (
+    FileContent,
+    RawItem,
+    ScrapeRequest,
+    ScrapeResponse,
+    SourceType,
+)
 from scraper_service.services.file_reader import FileReader
+from scraper_service.services.http_fetcher import fetch_urls
 
 router = APIRouter()
 
@@ -13,7 +22,39 @@ def get_file_reader() -> FileReader:
     return FileReader(root_dir=settings.scraper_root_dir)
 
 
-@router.get("/scrape", response_model=ScrapeResponse)
-def scrape(reader: FileReader = Depends(get_file_reader)) -> ScrapeResponse:
-    files: list[FileContent] = reader.read_all()
-    return ScrapeResponse(files=files, total_files=len(files))
+@router.post("/scrape", response_model=ScrapeResponse)
+async def scrape(
+        request: ScrapeRequest,
+        reader: FileReader = Depends(get_file_reader),
+) -> ScrapeResponse:
+    """Собирает сырые данные из файлов и/или HTTP-сайтов.
+
+    - файлы: через FileReader и glob-паттерн
+    - HTTP: через параллельный fetch с лимитом соединений
+    """
+    settings = get_settings()
+
+    items: list[RawItem] = []
+
+    # Файлы
+    if request.file_glob:
+        files: list[FileContent] = reader.read_all(pattern=request.file_glob)
+        for f in files:
+            items.append(
+                RawItem(
+                    source=SourceType.FILE,
+                    path=f.path,
+                    content=f.content,
+                )
+            )
+
+    # HTTP
+    if request.urls:
+        http_items = await fetch_urls(
+            [str(u) for u in request.urls],
+            timeout=settings.http_timeout,
+            max_connections=settings.http_max_connections,
+        )
+        items.extend(http_items)
+
+    return ScrapeResponse(items=items)

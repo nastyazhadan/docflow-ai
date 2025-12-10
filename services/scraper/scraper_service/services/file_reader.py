@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Optional
 
 from scraper_service.models.dto import FileContent
 
@@ -27,15 +29,26 @@ class FileReader:
             return True
         return path.suffix.lower() in self._allowed_extensions
 
-    def iter_files(self) -> Iterable[FileContent]:
-        # Один проход по дереву, без лишних аллокаций коллекций
-        for path in self._root_dir.rglob("*"):
+    def iter_files(self, pattern: Optional[str] = None) -> Iterable[FileContent]:
+        """Ленивый обход файлов.
+
+        - если pattern указан — используем glob(pattern)
+        - иначе — полный обход rglob("*")
+        """
+        if pattern:
+            candidates = self._root_dir.glob(pattern)
+        else:
+            candidates = self._root_dir.rglob("*")
+
+        for path in candidates:
             if not self._is_allowed(path):
                 continue
-            # Читаем файл полностью – иначе JSON всё равно не собрать
             text = path.read_text(encoding="utf-8", errors="ignore")
-            yield FileContent(path=str(path.relative_to(self._root_dir)), content=text)
+            yield FileContent(
+                path=str(path.relative_to(self._root_dir)),
+                content=text,
+            )
 
-    def read_all(self) -> list[FileContent]:
-        # Если нужно собрать в список (для JSON)
-        return list(self.iter_files())
+    def read_all(self, pattern: Optional[str] = None) -> list[FileContent]:
+        # Собираем в список, когда нужно отдать JSON
+        return list(self.iter_files(pattern))

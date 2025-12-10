@@ -10,6 +10,14 @@ class Settings:
         root_dir = os.getenv("SCRAPER_ROOT_DIR", "/data/docs")
         self.scraper_root_dir: Path = Path(root_dir).resolve()
 
+        # Настройки HTTP-скачивания
+        self.http_timeout: float = float(
+            os.getenv("SCRAPER_HTTP_TIMEOUT", "10.0")
+        )
+        self.http_max_connections: int = int(
+            os.getenv("SCRAPER_HTTP_MAX_CONNECTIONS", "10")
+        )
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

@@ -4,3 +4,4 @@ fastapi
 pytest
 uvicorn[standard]
 httpx
+requests
