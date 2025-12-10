@@ -1,2 +1,12 @@
-/.venv/
+# Python venv
+.venv/
+venv/
+env/
+
+# PyCharm
+.idea/
+
+# Мусор
+__pycache__/
+*.pyc
 
