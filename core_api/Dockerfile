@@ -30,10 +30,10 @@ RUN pip install --no-cache-dir \
 RUN pip install --no-cache-dir pytest || true
 
 # Копируем код API
-COPY api/ ./api/
+COPY core_api/ ./core_api/
 
 # Устанавливаем рабочую директорию для импортов
 ENV PYTHONPATH=/app
 
 # Запускаем API
-CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "core_api.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
