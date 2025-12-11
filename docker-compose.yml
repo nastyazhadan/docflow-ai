@@ -1,3 +1,12 @@
+# DocFlow AI - Docker Compose конфигурация
+#
+# ⚠️ ВАЖНО: Перед запуском необходимо установить Ollama локально!
+# 1. Установите Ollama: https://ollama.com/
+# 2. Установите модели: ollama pull gemma3:4b && ollama pull nomic-embed-text
+# 3. Убедитесь что Ollama запущен: curl http://localhost:11434/api/version
+#
+# Система работает ТОЛЬКО локально с Ollama (без OpenAI).
+
 services:
   n8n:
     image: n8nio/n8n:latest

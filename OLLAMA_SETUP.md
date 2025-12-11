@@ -1,14 +1,72 @@
 # Настройка Ollama для DocFlow AI
 
-## ✅ Статус: Ollama работает!
+## ⚠️ ОБЯЗАТЕЛЬНО: Установка Ollama перед запуском
+
+**Система работает ТОЛЬКО локально с Ollama. Без Ollama система не запустится!**
+
+---
+
+## Шаг 1: Установка Ollama
+
+1. **Скачайте Ollama:**
+   - macOS: https://ollama.com/download/mac
+   - Linux: https://ollama.com/download/linux
+   - Windows: https://ollama.com/download/windows
+
+2. **Установите и запустите:**
+   ```bash
+   # Ollama должен быть запущен как сервис
+   # На macOS/Linux он запускается автоматически после установки
+   # Проверьте:
+   curl http://localhost:11434/api/version
+   ```
+
+---
+
+## Шаг 2: Установка моделей
+
+**Обязательно установите обе модели:**
+
+```bash
+# 1. Модель для LLM (генерация ответов)
+ollama pull gemma3:4b
+
+# 2. Модель для embeddings (векторные представления)
+ollama pull nomic-embed-text
+```
+
+**Проверка установленных моделей:**
+```bash
+curl http://localhost:11434/api/tags
+```
+
+Должны быть видны обе модели:
+- `gemma3:4b`
+- `nomic-embed-text`
+
+---
+
+## Шаг 3: Проверка работы
+
+```bash
+# Тест подключения
+curl http://localhost:11434/api/version
+
+# Должен вернуть: {"version":"..."}
+```
+
+---
+
+## ✅ После установки Ollama
 
 - ✅ Ollama запущен локально
 - ✅ Модель `gemma3:4b` установлена
+- ✅ Модель `nomic-embed-text` установлена
 - ✅ Подключение из Docker контейнера работает
 
 ---
 
-## ⚠️ Важно: Нужен OpenAI API Key для embeddings
+## ⚠️ Важно: Система работает только локально
 
 Для работы индексации документов нужны **embeddings** (векторные представления текста).
 
