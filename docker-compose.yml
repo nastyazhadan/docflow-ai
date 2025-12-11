@@ -71,7 +71,7 @@ services:
   api:
     build:
       context: .
-      dockerfile: ./api/Dockerfile
+      dockerfile: core_api/Dockerfile
     restart: unless-stopped
     ports:
       - "8004:8000"

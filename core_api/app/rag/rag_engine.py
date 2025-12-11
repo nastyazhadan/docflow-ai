@@ -2,7 +2,7 @@ from pathlib import Path
 
 from llama_index.core import SimpleDirectoryReader, VectorStoreIndex
 
-from llm_factory import configure_llm_from_env
+from core_api.app.core.config import configure_llm_from_env
 
 DOCS_DIR = Path("data/docs")
 
