@@ -1,7 +1,12 @@
-
 pydantic
 fastapi
 pytest
 uvicorn[standard]
 httpx
 requests
+llama-index
+llama-index-llms-ollama
+llama-index-embeddings-ollama
+llama-index-vector-stores-qdrant
+ollama
+qdrant-client

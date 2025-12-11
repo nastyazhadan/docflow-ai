@@ -5,6 +5,7 @@ import logging
 from typing import List, Optional, Sequence
 
 import httpx
+from pydantic import AnyHttpUrl
 
 from scraper_service.models.dto import RawItem, SourceType
 
@@ -38,7 +39,7 @@ async def fetch_urls(
 
         return RawItem(
             source=SourceType.HTTP,
-            url=url,
+            url=AnyHttpUrl(url),
             content=resp.text,
         )
 

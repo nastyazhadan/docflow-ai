@@ -199,7 +199,7 @@ def test_full_pipeline_single_file(
     assert 1 <= meta0["total_chunks"] == len(docs)
 
     # indexer должен был вызвать Core ingest ровно 1 раз
-    from indexer_service.main import indexer_app
+    from indexer_service.main import indexer_app  # type: ignore[import-untyped]
 
     calls = getattr(indexer_app.state, "ingest_calls", [])
     assert len(calls) == 1
@@ -260,7 +260,7 @@ def test_full_pipeline_multiple_files_chunk_metadata(
 
 
 def test_indexer_boundary_no_items(indexer_client: TestClient):
-    from indexer_service.main import indexer_app
+    from indexer_service.main import indexer_app  # type: ignore[import-untyped]
 
     # Передаём пустой список items → должно вернуть indexed=0
     resp = indexer_client.post(
