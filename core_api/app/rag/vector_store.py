@@ -8,6 +8,8 @@
 """
 
 import os
+import re
+from functools import lru_cache
 from typing import Optional
 
 from llama_index.core import Document as LlamaDocument, StorageContext, VectorStoreIndex
@@ -22,12 +24,32 @@ QDRANT_PORT = int(os.getenv("QDRANT_PORT", "6333"))
 QDRANT_URL = f"http://{QDRANT_HOST}:{QDRANT_PORT}"
 
 
+def sanitize_space_id(space_id: str) -> str:
+    """
+    Санитизирует space_id для использования в имени коллекции Qdrant.
+    
+    Разрешает только символы [a-zA-Z0-9_-], остальные заменяет на _.
+    
+    Параметры:
+    - space_id: исходный идентификатор пространства
+    
+    Возвращает:
+    - Санитизированную строку, безопасную для использования в имени коллекции
+    """
+    # Заменяем все неразрешённые символы на _
+    sanitized = re.sub(r"[^a-zA-Z0-9_-]", "_", space_id)
+    return sanitized
+
+
+@lru_cache(maxsize=1)
 def get_qdrant_client() -> QdrantClient:
     """
-    Создаёт и возвращает клиент для подключения к Qdrant.
+    Создаёт и возвращает кэшированный клиент для подключения к Qdrant.
     
     Qdrant - векторная БД для хранения эмбеддингов документов.
     Используется для быстрого поиска похожих документов по запросу.
+    
+    Клиент кэшируется для переиспользования между запросами.
     """
     return QdrantClient(url=QDRANT_URL, prefer_grpc=False)
 
@@ -41,10 +63,10 @@ def get_or_create_collection(space_id: str, client: Optional[QdrantClient] = Non
     
     Параметры:
     - space_id: идентификатор пространства знаний
-    - client: опциональный клиент Qdrant (если не передан, создаётся новый)
+    - client: опциональный клиент Qdrant (если не передан, используется кэшированный)
     
     Возвращает:
-    - Имя коллекции в формате "space_{space_id}"
+    - Имя коллекции в формате "space_{sanitized_space_id}"
     """
     qdrant_client: QdrantClient
     if client is None:
@@ -52,15 +74,16 @@ def get_or_create_collection(space_id: str, client: Optional[QdrantClient] = Non
     else:
         qdrant_client = client
 
-    # Имя коллекции формируется из space_id для изоляции данных
-    collection_name = f"space_{space_id}"
+    # Санитизируем space_id и формируем имя коллекции
+    sanitized_id = sanitize_space_id(space_id)
+    collection_name = f"space_{sanitized_id}"
 
-    # Проверяем, существует ли коллекция
-    collections = qdrant_client.get_collections().collections
-    collection_names = [c.name for c in collections]
-
-    if collection_name not in collection_names:
-        # Создаём новую коллекцию с настройками для векторного поиска
+    # Проверяем существование коллекции через get_collection (более эффективно)
+    try:
+        qdrant_client.get_collection(collection_name)
+        # Коллекция существует
+    except Exception:
+        # Коллекция не существует, создаём новую
         # Используем размерность Ollama embeddings (nomic-embed-text = 768)
         # Можно настроить через переменную окружения EMBEDDING_DIMENSION
         embedding_dim = int(os.getenv("EMBEDDING_DIMENSION", "768"))  # nomic-embed-text размерность
@@ -108,18 +131,10 @@ def get_vector_store_index(space_id: str) -> VectorStoreIndex:
     # Загружаем существующий индекс или создаём новый
     # Если коллекция пустая, создастся пустой индекс
     # Если в коллекции уже есть документы, они будут доступны через индекс
-    try:
-        index = VectorStoreIndex.from_vector_store(
-            vector_store=vector_store,
-            storage_context=storage_context,
-        )
-    except Exception:
-        # Если индекс не существует, создаём новый
-        # (в большинстве случаев это то же самое, но на всякий случай)
-        index = VectorStoreIndex.from_vector_store(
-            vector_store=vector_store,
-            storage_context=storage_context,
-        )
+    index = VectorStoreIndex.from_vector_store(
+        vector_store=vector_store,
+        storage_context=storage_context,
+    )
 
     return index
 

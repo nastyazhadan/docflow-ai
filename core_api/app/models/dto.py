@@ -91,6 +91,20 @@ class QueryRequest(BaseModel):
     )
 
 
+class SourceItem(BaseModel):
+    """
+    Элемент источника (чанк документа), использованный для генерации ответа.
+    
+    Содержит превью текста, оценку релевантности и метаданные чанка.
+    """
+    text: str = Field(..., description="Превью текста чанка (до 200 символов)")
+    score: Optional[float] = Field(None, description="Оценка релевантности чанка к запросу")
+    
+    # Динамические поля из metadata (source, path, url, title, created_at, chunk_index, total_chunks)
+    # Используем model_config для разрешения дополнительных полей
+    model_config = {"extra": "allow"}
+
+
 class QueryResponse(BaseModel):
     """
     Ответ на RAG-запрос.
@@ -102,7 +116,7 @@ class QueryResponse(BaseModel):
         ...,
         description="Ответ LLM на основе найденных документов"
     )
-    sources: List[dict] = Field(
+    sources: List[SourceItem] = Field(
         default_factory=list,
         description="Список источников (чанков) с метаданными, использованных для генерации ответа"
     )
