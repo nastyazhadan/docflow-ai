@@ -12,3 +12,5 @@ ollama
 qdrant-client
 llama-index-core
 starlette
+streamlit
+requests
