@@ -11,3 +11,4 @@ llama-index-vector-stores-qdrant
 ollama
 qdrant-client
 llama-index-core
+starlette

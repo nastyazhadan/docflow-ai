@@ -43,12 +43,12 @@ def configure_llm_from_env() -> None:
     if provider == "ollama":
         # Настройка Ollama LLM (локальная модель)
         # Ollama должен быть запущен локально или доступен по сети
-        model = os.getenv("OLLAMA_MODEL", "gemma3:4b")
+        model = os.getenv("OLLAMA_MODEL", "qwen2.5:0.5b")
         # Для доступа из Docker контейнера используем host.docker.internal
         # Для локального запуска можно использовать localhost
         base_url = os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
         Settings.llm = Ollama(model=model, base_url=base_url)
-        
+
         # Используем Ollama embeddings (локально, без необходимости в OpenAI)
         # Модель для embeddings можно указать отдельно
         # nomic-embed-text - хороший выбор для embeddings (768 размерность)
@@ -60,6 +60,6 @@ def configure_llm_from_env() -> None:
         )
         print(f"✅ Ollama LLM настроен: {model}")
         print(f"✅ Ollama Embeddings настроены: {embedding_model}")
-            
+
     else:
         raise ValueError(f"Unsupported LLM_PROVIDER={provider}. Используйте 'ollama' для локальной работы.")

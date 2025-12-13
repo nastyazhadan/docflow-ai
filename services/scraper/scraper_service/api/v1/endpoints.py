@@ -23,32 +23,17 @@ def get_file_reader() -> FileReader:
 
 
 @router.post("/scrape", response_model=ScrapeResponse)
-async def scrape(
-        request: ScrapeRequest,
-        reader: FileReader = Depends(get_file_reader),
-) -> ScrapeResponse:
-    """Собирает сырые данные из файлов и/или HTTP-сайтов.
-
-    - файлы: через FileReader и glob-паттерн
-    - HTTP: через параллельный fetch с лимитом соединений
-    """
+async def scrape(request: ScrapeRequest, reader: FileReader = Depends(get_file_reader)) -> ScrapeResponse:
     settings = get_settings()
-
     items: list[RawItem] = []
 
-    # Файлы
     if request.file_glob:
         files: list[FileContent] = reader.read_all(pattern=request.file_glob)
         for f in files:
-            items.append(
-                RawItem(
-                    source=SourceType.FILE,
-                    path=f.path,
-                    content=f.content,
-                )
-            )
+            if not f.content.strip():
+                continue
+            items.append(RawItem(source=SourceType.FILE, path=f.path, content=f.content))
 
-    # HTTP
     if request.urls:
         http_items = await fetch_urls(
             [str(u) for u in request.urls],
@@ -57,4 +42,4 @@ async def scrape(
         )
         items.extend(http_items)
 
-    return ScrapeResponse(items=items)
+    return ScrapeResponse(context=request.context, items=items)

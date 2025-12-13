@@ -1,81 +1,62 @@
+from datetime import datetime, timezone
 from typing import List, Optional
+from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, model_validator, field_validator
+
+
+class PipelineContext(BaseModel):
+    space_id: str = Field(..., min_length=1, max_length=128)
+    tenant_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
+    run_id: UUID = Field(default_factory=uuid4)
+    started_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    @field_validator("space_id")
+    @classmethod
+    def strip_space_id(cls, v: str) -> str:
+        v = (v or "").strip()
+        if not v:
+            raise ValueError("space_id must be non-empty")
+        return v
+
+    model_config = {"extra": "forbid"}
 
 
 class ItemBase(BaseModel):
-    """
-    Базовая модель элемента пайплайна (общие поля для всех стадий).
-
-    Для файлов:
-    - source = "file"
-    - path обязателен
-    - url может быть None
-
-    Для HTTP:
-    - source = "http"
-    - url обязателен
-    - path может быть None
-    """
-
     source: str = Field(..., min_length=1)
     path: Optional[str] = Field(default=None)
     url: Optional[str] = None
 
     @model_validator(mode="after")
     def validate_location(self) -> "ItemBase":
-        # Приводим source к нижнему регистру на всякий случай
         s = (self.source or "").lower()
-
         if s == "file" and not self.path:
             raise ValueError("path is required when source='file'")
-
         if s == "http" and not self.url:
             raise ValueError("url is required when source='http'")
-
         return self
+
+    model_config = {"extra": "forbid"}
 
 
 class CleanItemIn(ItemBase):
-    """
-    Элемент на вход cleaner-service: сырое содержимое документа.
-    """
-
     content: str = Field(default="")
 
 
 class CleanItemOut(ItemBase):
-    """
-    Элемент на выход cleaner-service:
-    - raw_content: оригинальный текст до очистки
-    - cleaned_content: очищенный текст (без HTML, с нормализованными пробелами)
-    """
-
     raw_content: str
     cleaned_content: str
 
 
 class CleanRequest(BaseModel):
-    """
-    Запрос к /clean.
-
-    Формат:
-    {
-      "items": [ { ... } ]
-    }
-    """
-
+    context: PipelineContext
     items: List[CleanItemIn]
+
+    model_config = {"extra": "forbid"}
 
 
 class CleanResponse(BaseModel):
-    """
-    Ответ от /clean.
-
-    Формат:
-    {
-      "items": [ { ... } ]
-    }
-    """
-
+    context: PipelineContext
     items: List[CleanItemOut]
+
+    model_config = {"extra": "forbid"}

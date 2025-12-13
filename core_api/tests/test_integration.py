@@ -69,7 +69,7 @@ def client() -> Iterator[TestClient]:
     original_ollama_url = os.getenv("OLLAMA_BASE_URL")
     if not original_ollama_url or "host.docker.internal" in original_ollama_url:
         os.environ["OLLAMA_BASE_URL"] = "http://localhost:11434"
-    
+
     # Настраиваем LLM для тестов
     # В тестах можно использовать мок или реальный Ollama
     try:
@@ -79,10 +79,10 @@ def client() -> Iterator[TestClient]:
         if original_ollama_url:
             os.environ["OLLAMA_BASE_URL"] = original_ollama_url
         pytest.skip(f"Не удалось настроить LLM: {e}")
-    
+
     with TestClient(app) as test_client:
         yield test_client
-    
+
     # Восстанавливаем оригинальный URL после тестов
     if original_ollama_url:
         os.environ["OLLAMA_BASE_URL"] = original_ollama_url
@@ -105,11 +105,11 @@ def cleanup_after_test() -> Iterator[None]:
     В реальном проекте можно добавить endpoint для очистки или использовать мок Qdrant.
     """
     yield
-    
+
     # Очистка всех тестовых коллекций после теста
     try:
         from core_api.app.rag.vector_store import get_qdrant_client
-        
+
         qdrant_client = get_qdrant_client()
         # Удаляем все коллекции, начинающиеся с "test-space-"
         collections = qdrant_client.get_collections().collections
@@ -158,7 +158,7 @@ def test_ingest_single_document(client: TestClient, test_space_id: str) -> None:
             "total_chunks": 1,
         },
     }
-    
+
     response = client.post(
         f"/spaces/{test_space_id}/ingest",
         json={"documents": [document]},
@@ -190,7 +190,7 @@ def test_ingest_multiple_documents(client: TestClient, test_space_id: str) -> No
         }
         for i in range(3)
     ]
-    
+
     response = client.post(
         f"/spaces/{test_space_id}/ingest",
         json={"documents": documents},
@@ -209,7 +209,7 @@ def test_ingest_document_with_chunks(client: TestClient, test_space_id: str) -> 
     documents = [
         {
             "external_id": f"test:big_doc.txt:{i}",
-            "text": f"Это часть {i+1} большого документа. Каждая часть содержит уникальную информацию.",
+            "text": f"Это часть {i + 1} большого документа. Каждая часть содержит уникальную информацию.",
             "metadata": {
                 "source": "file",
                 "path": "test/big_doc.txt",
@@ -222,7 +222,7 @@ def test_ingest_document_with_chunks(client: TestClient, test_space_id: str) -> 
         }
         for i in range(3)
     ]
-    
+
     response = client.post(
         f"/spaces/{test_space_id}/ingest",
         json={"documents": documents},
@@ -235,12 +235,12 @@ def test_ingest_document_with_chunks(client: TestClient, test_space_id: str) -> 
 def test_query_empty_space(client: TestClient, test_space_id: str) -> None:
     """Тест запроса к пустому пространству (должен вернуть ошибку или пустой ответ)."""
     empty_space_id = f"empty-space-{uuid.uuid4().hex[:8]}"
-    
+
     response = client.post(
         f"/spaces/{empty_space_id}/query",
         json={"query": "Что такое Python?", "top_k": 5},
     )
-    
+
     # Может вернуть ошибку или пустой ответ в зависимости от реализации
     assert response.status_code in [200, 404, 500]
 
@@ -261,8 +261,8 @@ def test_ingest_and_query_flow(client: TestClient, test_space_id: str) -> None:
         {
             "external_id": "python:basics.txt:0",
             "text": "Python - это интерпретируемый язык программирования высокого уровня. "
-                   "Он был создан Гвидо ван Россумом и впервые выпущен в 1991 году. "
-                   "Python поддерживает несколько парадигм программирования.",
+                    "Он был создан Гвидо ван Россумом и впервые выпущен в 1991 году. "
+                    "Python поддерживает несколько парадигм программирования.",
             "metadata": {
                 "source": "file",
                 "path": "docs/python/basics.txt",
@@ -276,8 +276,8 @@ def test_ingest_and_query_flow(client: TestClient, test_space_id: str) -> None:
         {
             "external_id": "python:features.txt:0",
             "text": "Python известен своей простотой и читаемостью кода. "
-                   "Он имеет динамическую типизацию и автоматическое управление памятью. "
-                   "Python широко используется в веб-разработке, data science и машинном обучении.",
+                    "Он имеет динамическую типизацию и автоматическое управление памятью. "
+                    "Python широко используется в веб-разработке, data science и машинном обучении.",
             "metadata": {
                 "source": "file",
                 "path": "docs/python/features.txt",
@@ -291,7 +291,7 @@ def test_ingest_and_query_flow(client: TestClient, test_space_id: str) -> None:
         {
             "external_id": "javascript:basics.txt:0",
             "text": "JavaScript - это язык программирования, который используется для создания "
-                   "интерактивных веб-страниц. Он работает в браузере и на сервере (Node.js).",
+                    "интерактивных веб-страниц. Он работает в браузере и на сервере (Node.js).",
             "metadata": {
                 "source": "file",
                 "path": "docs/javascript/basics.txt",
@@ -303,34 +303,44 @@ def test_ingest_and_query_flow(client: TestClient, test_space_id: str) -> None:
             },
         },
     ]
-    
+
     # Индексируем документы
     ingest_response = client.post(
         f"/spaces/{test_space_id}/ingest",
         json={"documents": documents},
     )
+
+    if ingest_response.status_code != 200:
+        print("STATUS:", ingest_response.status_code)
+        print("BODY:", ingest_response.text)
+
     assert ingest_response.status_code == 200
     assert ingest_response.json()["indexed"] == 3
-    
+
     # 2. Выполняем запрос о Python
     query_response = client.post(
         f"/spaces/{test_space_id}/query",
         json={"query": "Что такое Python?", "top_k": 2},
     )
+
+    if query_response.status_code != 200:
+        print("STATUS:", query_response.status_code)
+        print("BODY:", query_response.text)
+
     assert query_response.status_code == 200
-    
+
     query_data = query_response.json()
     assert "answer" in query_data
     assert "sources" in query_data
     assert len(query_data["sources"]) > 0
-    
+
     # Проверяем, что ответ содержит информацию о Python
     # LLM может не упомянуть слово "Python" напрямую, но ответ должен быть релевантным
     answer = query_data["answer"].lower()
     # Проверяем наличие ключевых слов о Python или что ответ не пустой
     python_keywords = ["python", "питон", "язык программирования", "интерпретируемый", "гвидо"]
     assert any(keyword in answer for keyword in python_keywords) or len(answer) > 50
-    
+
     # Проверяем, что источники содержат метаданные
     for source in query_data["sources"]:
         assert "text" in source
@@ -363,26 +373,41 @@ def test_query_with_different_top_k(client: TestClient, test_space_id: str) -> N
         }
         for i in range(5)
     ]
-    
+
     ingest_response = client.post(
         f"/spaces/{test_space_id}/ingest",
         json={"documents": documents},
     )
+
+    if ingest_response.status_code != 200:
+        print("STATUS:", ingest_response.status_code)
+        print("BODY:", ingest_response.text)
+
     assert ingest_response.status_code == 200
-    
+
     # Запрос с top_k=1
     query_response_1 = client.post(
         f"/spaces/{test_space_id}/query",
         json={"query": "тема 0", "top_k": 1},
     )
+
+    if query_response_1.status_code != 200:
+        print("STATUS:", query_response_1.status_code)
+        print("BODY:", query_response_1.text)
+
     assert query_response_1.status_code == 200
     assert len(query_response_1.json()["sources"]) <= 1
-    
+
     # Запрос с top_k=3
     query_response_3 = client.post(
         f"/spaces/{test_space_id}/query",
         json={"query": "тема", "top_k": 3},
     )
+
+    if query_response_3.status_code != 200:
+        print("STATUS:", query_response_3.status_code)
+        print("BODY:", query_response_3.text)
+
     assert query_response_3.status_code == 200
     assert len(query_response_3.json()["sources"]) <= 3
 
@@ -395,14 +420,14 @@ def test_query_validation(client: TestClient, test_space_id: str) -> None:
         json={"query": "", "top_k": 5},
     )
     assert response.status_code == 422  # Validation error
-    
+
     # Запрос без query
     response = client.post(
         f"/spaces/{test_space_id}/query",
         json={"top_k": 5},
     )
     assert response.status_code == 422  # Validation error
-    
+
     # Запрос с отрицательным top_k
     response = client.post(
         f"/spaces/{test_space_id}/query",
@@ -419,7 +444,7 @@ def test_ingest_validation(client: TestClient, test_space_id: str) -> None:
         json={"documents": [{"text": "test"}]},
     )
     assert response.status_code == 422  # Validation error
-    
+
     # Документ с пустым текстом
     response = client.post(
         f"/spaces/{test_space_id}/ingest",
@@ -441,4 +466,3 @@ def test_ingest_validation(client: TestClient, test_space_id: str) -> None:
         },
     )
     assert response.status_code == 422  # Validation error
-

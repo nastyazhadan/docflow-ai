@@ -1,13 +1,31 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from enum import Enum
 from typing import List, Optional
+from uuid import UUID, uuid4
 
-from pydantic import AnyHttpUrl, BaseModel, Field, model_validator
+from pydantic import AnyHttpUrl, BaseModel, Field, model_validator, field_validator
+
+
+class PipelineContext(BaseModel):
+    space_id: str = Field(..., min_length=1, max_length=128)
+    tenant_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
+    run_id: UUID = Field(default_factory=uuid4)
+    started_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    @field_validator("space_id")
+    @classmethod
+    def strip_space_id(cls, v: str) -> str:
+        v = (v or "").strip()
+        if not v:
+            raise ValueError("space_id must be non-empty")
+        return v
+
+    model_config = {"extra": "forbid"}
 
 
 class FileContent(BaseModel):
-    """Внутреннее представление файла, которое возвращает FileReader."""
     path: str
     content: str
 
@@ -18,30 +36,10 @@ class SourceType(str, Enum):
 
 
 class RawItem(BaseModel):
-    """
-    Унифицированный формат сырых данных для ingestion-пайплайна.
-
-    Это по сути тот же контракт, что мы заложили в common-модели:
-    - source: "file" или "http"
-    - path: путь к файлу (для файлов)
-    - url: URL (для HTTP)
-    - content: сырой текст/HTML
-    """
-
     source: SourceType
-    path: Optional[str] = Field(
-        default=None,
-        description="Относительный путь к файлу, если source = file",
-    )
-    url: Optional[AnyHttpUrl] = Field(
-        default=None,
-        description="URL, если source = http",
-    )
-    content: str = Field(
-        ...,
-        description="Содержимое файла или HTML-страницы",
-        min_length=1,
-    )
+    path: Optional[str] = Field(default=None)
+    url: Optional[AnyHttpUrl] = Field(default=None)
+    content: str = Field(..., min_length=1)
 
     @model_validator(mode="after")
     def validate_location(self) -> "RawItem":
@@ -55,23 +53,10 @@ class RawItem(BaseModel):
 
 
 class ScrapeRequest(BaseModel):
-    """
-    Запрос к /scrape.
+    context: PipelineContext
 
-    Можно передать:
-    - file_glob: glob-паттерн для файлов (относительно root_dir),
-    - urls: список URL для HTTP-скачивания.
-    Нужно указать хотя бы одно из полей.
-    """
-
-    file_glob: Optional[str] = Field(
-        default=None,
-        description="Glob-паттерн относительно корневой директории",
-    )
-    urls: Optional[List[AnyHttpUrl]] = Field(
-        default=None,
-        description="Список URL для HTTP-загрузки",
-    )
+    file_glob: Optional[str] = Field(default=None)
+    urls: Optional[List[AnyHttpUrl]] = Field(default=None)
 
     @model_validator(mode="after")
     def validate_non_empty(self) -> "ScrapeRequest":
@@ -83,10 +68,7 @@ class ScrapeRequest(BaseModel):
 
 
 class ScrapeResponse(BaseModel):
-    """
-    Ответ /scrape — унифицированный список RawItem.
-    """
-
+    context: PipelineContext
     items: List[RawItem]
 
     model_config = {"extra": "forbid"}
