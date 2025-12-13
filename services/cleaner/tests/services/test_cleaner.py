@@ -1,5 +1,7 @@
 import pytest
+from fastapi.testclient import TestClient
 
+from cleaner_service.main import cleaner_app
 from cleaner_service.models.dto import CleanItemIn
 from cleaner_service.services.cleaner import TextCleaner
 
@@ -142,3 +144,25 @@ def test_cleaner_removes_style_tag_content_completely(cleaner: TextCleaner) -> N
     assert "title" in out
     assert "body{" not in out
     assert "background" not in out
+
+
+client = TestClient(cleaner_app)
+
+
+def test_clean_returns_context():
+    resp = client.post(
+        "/clean",
+        json={
+            "context": {"space_id": "space-1"},
+            "items": [
+                {"source": "file", "path": "doc.txt", "url": None, "content": "<p>Hello</p>"}
+            ],
+        },
+    )
+
+    assert resp.status_code == 200
+    body = resp.json()
+
+    assert body["context"]["space_id"] == "space-1"
+    assert len(body["items"]) == 1
+    assert body["items"][0]["cleaned_content"] == "Hello"

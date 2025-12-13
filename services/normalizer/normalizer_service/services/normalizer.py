@@ -8,9 +8,9 @@ from typing import Iterable, List
 from urllib.parse import urlparse
 
 from normalizer_service.models.dto import (
-    Metadata,
     NormalizerItemIn,
     NormalizedDocument,
+    Metadata
 )
 
 _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
@@ -182,22 +182,25 @@ class TextNormalizer:
             title = self._derive_title(item)
 
             for idx, chunk_text in enumerate(chunks):
-                external_id = f"{item.source}:{item.path}:{idx}"
-
-                # path должен быть строкой:
-                # - для файлов берём item.path
-                # - для HTTP подставляем url (или пустую строку как последний fallback)
+                # external_id: file -> path, http -> url
                 if item.path is not None:
+                    external_base = item.path
                     meta_path = item.path
+                    meta_url = item.url  # обычно None для file
                 elif item.url is not None:
-                    meta_path = str(item.url)
+                    external_base = str(item.url)
+                    meta_path = str(item.url)  # по контракту path обязателен
+                    meta_url = str(item.url)
                 else:
-                    meta_path = ""
+                    # сюда не должны попадать из-за валидации, но пусть будет безопасно
+                    continue
+
+                external_id = f"{item.source}:{external_base}:{idx}"
 
                 metadata = Metadata(
                     source=item.source,
                     path=meta_path,
-                    url=item.url,
+                    url=meta_url,
                     title=title,
                     created_at=created_at,
                     chunk_index=idx,

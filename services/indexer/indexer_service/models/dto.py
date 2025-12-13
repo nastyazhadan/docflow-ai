@@ -3,11 +3,16 @@ from typing import List, Optional
 from pydantic import BaseModel, Field
 
 
-class Metadata(BaseModel):
-    """
-    Метаданные чанка, максимально совместимые с контрактом /ingest.
-    """
+class PipelineContext(BaseModel):
+    space_id: str = Field(..., min_length=1)
+    tenant_id: Optional[str] = None
+    run_id: Optional[str] = None
+    started_at: str = Field(..., min_length=1)
 
+    model_config = {"extra": "forbid"}
+
+
+class Metadata(BaseModel):
     source: str = Field(..., min_length=1)
     path: str = Field(..., min_length=1)
     url: Optional[str] = None
@@ -16,34 +21,26 @@ class Metadata(BaseModel):
     chunk_index: int = Field(..., ge=0)
     total_chunks: int = Field(..., ge=1)
 
+    model_config = {"extra": "forbid"}
+
 
 class NormalizedDocument(BaseModel):
-    """
-    Документ после normalizer-service (один чанк).
-    Используем и на входе /index, и в documents для /ingest.
-    """
-
     external_id: str = Field(..., min_length=1)
     text: str = Field(..., min_length=1)
     metadata: Metadata
 
+    model_config = {"extra": "forbid"}
+
 
 class IndexRequest(BaseModel):
-    """
-    Запрос к /index/{space_id}.
-
-    Формат:
-    {
-      "items": [ { external_id, text, metadata } ]
-    }
-    """
-
+    context: PipelineContext
     items: List[NormalizedDocument]
+
+    model_config = {"extra": "forbid"}
 
 
 class IndexResponse(BaseModel):
-    """
-    Ответ от indexer-service: сколько документов успешно передано.
-    """
-
+    context: PipelineContext
     indexed: int = Field(..., ge=0)
+
+    model_config = {"extra": "forbid"}

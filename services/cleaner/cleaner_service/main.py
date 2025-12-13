@@ -13,16 +13,5 @@ _cleaner = TextCleaner()
 
 @cleaner_app.post("/clean", response_model=CleanResponse)
 def clean_endpoint(request: CleanRequest) -> CleanResponse:
-    """
-    Принимает:
-    {
-      "items": [ { source, path, url, content } ]
-    }
-
-    Возвращает:
-    {
-      "items": [ { source, path, url, raw_content, cleaned_content } ]
-    }
-    """
     cleaned_items = _cleaner.clean(request.items)
-    return CleanResponse(items=cleaned_items)
+    return CleanResponse(context=request.context, items=cleaned_items)

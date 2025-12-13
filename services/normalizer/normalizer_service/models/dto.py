@@ -1,23 +1,20 @@
+from __future__ import annotations
+
 from typing import List, Optional
 
-from pydantic import BaseModel, model_validator, Field
+from pydantic import BaseModel, Field, model_validator
+
+
+class PipelineContext(BaseModel):
+    space_id: str = Field(..., min_length=1)
+    tenant_id: Optional[str] = None
+    run_id: Optional[str] = None
+    started_at: str = Field(..., min_length=1)
+
+    model_config = {"extra": "forbid"}
 
 
 class NormalizerItemIn(BaseModel):
-    """
-    Входной элемент normalizer-service — результат cleaner-service.
-
-    Для файлов:
-    - source = "file"
-    - path обязателен
-    - url может быть None
-
-    Для HTTP:
-    - source = "http"
-    - url обязательна
-    - path может быть None
-    """
-
     source: str = Field(..., min_length=1)
     path: Optional[str] = Field(default=None)
     url: Optional[str] = None
@@ -36,48 +33,38 @@ class NormalizerItemIn(BaseModel):
 
         return self
 
+    model_config = {"extra": "forbid"}
+
 
 class Metadata(BaseModel):
-    """
-    Метаданные для чанка — максимально близко к /ingest контракту.
-    """
-    source: str
-    path: str
+    source: str = Field(..., min_length=1)
+    path: str = Field(..., min_length=1)
     url: Optional[str] = None
-    title: str
-    created_at: str
-    chunk_index: int
-    total_chunks: int
+    title: str = Field(..., min_length=1)
+    created_at: str = Field(..., min_length=1)
+    chunk_index: int = Field(..., ge=0)
+    total_chunks: int = Field(..., ge=1)
+
+    model_config = {"extra": "forbid"}
 
 
 class NormalizedDocument(BaseModel):
-    """
-    Один нормализованный документ (чанк), готовый к индексации.
-    """
-    external_id: str
-    text: str
+    external_id: str = Field(..., min_length=1)
+    text: str = Field(..., min_length=1)
     metadata: Metadata
+
+    model_config = {"extra": "forbid"}
 
 
 class NormalizeRequest(BaseModel):
-    """
-    Запрос к /normalize.
-
-    Формат:
-    {
-      "items": [...]
-    }
-    """
+    context: PipelineContext
     items: List[NormalizerItemIn]
+
+    model_config = {"extra": "forbid"}
 
 
 class NormalizeResponse(BaseModel):
-    """
-    Ответ от /normalize.
-
-    Формат:
-    {
-      "items": [...]
-    }
-    """
+    context: PipelineContext
     items: List[NormalizedDocument]
+
+    model_config = {"extra": "forbid"}

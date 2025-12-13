@@ -1,6 +1,5 @@
 from datetime import datetime, timezone
 from typing import List, Optional
-from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, model_validator, field_validator
 
@@ -8,7 +7,7 @@ from pydantic import BaseModel, Field, model_validator, field_validator
 class PipelineContext(BaseModel):
     space_id: str = Field(..., min_length=1, max_length=128)
     tenant_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
-    run_id: UUID = Field(default_factory=uuid4)
+    run_id: Optional[str] = None
     started_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     @field_validator("space_id")

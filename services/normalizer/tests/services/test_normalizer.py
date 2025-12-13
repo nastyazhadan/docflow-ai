@@ -1,5 +1,7 @@
 import pytest
+from fastapi.testclient import TestClient
 
+from normalizer_service.main import normalizer_app
 from normalizer_service.models.dto import NormalizerItemIn
 from normalizer_service.services.normalizer import TextNormalizer
 
@@ -53,6 +55,7 @@ def test_normalizer_single_short_chunk(normalizer: TextNormalizer) -> None:
     assert doc.metadata.path == "doc.txt"
     assert doc.metadata.title == "doc.txt"
     assert doc.metadata.created_at.endswith("Z")
+    assert doc.external_id == "file:doc.txt:0"
 
 
 def test_normalizer_multiple_chunks_by_sentences() -> None:
@@ -110,3 +113,59 @@ def test_normalizer_single_sentence_longer_than_limit() -> None:
     # total_chunks во всех чанках одинаковое
     totals = {doc.metadata.total_chunks for doc in result}
     assert totals == {3}
+
+
+@pytest.fixture()
+def client() -> TestClient:
+    return TestClient(normalizer_app)
+
+
+def test_normalize_returns_context(client):
+    resp = client.post(
+        "/normalize",
+        json={
+            "context": {
+                "space_id": "space-1",
+                "tenant_id": None,
+                "run_id": "run-1",
+                "started_at": "2025-12-13T21:12:00Z",
+            },
+            "items": [
+                {
+                    "source": "file",
+                    "path": "doc.txt",
+                    "url": None,
+                    "raw_content": "ignored",
+                    "cleaned_content": "Hello world",
+                }
+            ],
+        },
+    )
+
+    assert resp.status_code == 200
+    body = resp.json()
+
+    assert body["context"]["space_id"] == "space-1"
+    assert body["context"]["started_at"] == "2025-12-13T21:12:00Z"
+    assert body["context"]["run_id"] == "run-1"
+    assert len(body["items"]) == 1
+    assert body["items"][0]["metadata"]["chunk_index"] == 0
+    assert body["items"][0]["metadata"]["total_chunks"] == 1
+
+
+def test_normalizer_http_external_id_uses_url():
+    item = NormalizerItemIn(
+        source="http",
+        path=None,
+        url="https://example.com/page",
+        raw_content="ignored",
+        cleaned_content="Hello world",
+    )
+
+    n = TextNormalizer(max_chunk_chars=1000)
+    result = n.normalize([item])
+
+    assert len(result) == 1
+    assert result[0].external_id == "http:https://example.com/page:0"
+    assert result[0].metadata.path == "https://example.com/page"
+    assert result[0].metadata.url == "https://example.com/page"
