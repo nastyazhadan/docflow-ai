@@ -2,6 +2,17 @@
 
 Система индексации документов и RAG (Retrieval-Augmented Generation) на основе LlamaIndex и Qdrant.
 
+Когда меняешь модели (чтобы не забыть, что что-то надо делать в этом случае. Спросить, надо ли это делать другой ветке):
+
+Сгенерировать миграцию
+docker compose exec api alembic -c /app/core_api/alembic/alembic.ini revision --autogenerate -m "..."
+Проверить миграцию глазами (что не нагенерило лишнего)
+Применить
+docker compose exec api alembic -c /app/core_api/alembic/alembic.ini upgrade head
+
+alembic revision --autogenerate ... — запускаешь только когда меняешь ORM-модели (добавила поле/таблицу/индекс).
+alembic upgrade head — запускаешь после новой ревизии (в деве хоть каждый день; в проде — при деплое).
+
 Запустить web:
 
  ```bash

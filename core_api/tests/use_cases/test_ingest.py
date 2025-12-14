@@ -2,11 +2,10 @@
 Unit тесты для use case индексации документов.
 """
 
-import pytest
 from unittest.mock import Mock, patch
 
+from core_api.app.handlers.ingest import ingest_documents
 from core_api.app.models.dto import Document, IngestRequest, IngestResponse, Metadata
-from core_api.app.use_cases.ingest import ingest_documents
 
 
 def test_ingest_empty_documents_returns_zero():
@@ -19,7 +18,7 @@ def test_ingest_empty_documents_returns_zero():
 @patch("core_api.app.use_cases.ingest.add_documents_to_index")
 @patch("core_api.app.use_cases.ingest.documents_to_llama")
 def test_ingest_documents_calls_mapper_and_indexer(
-    mock_documents_to_llama, mock_add_documents_to_index
+        mock_documents_to_llama, mock_add_documents_to_index
 ):
     """Тест: use case вызывает mapper и indexer с правильными параметрами."""
     # Подготовка
@@ -70,7 +69,7 @@ def test_ingest_documents_calls_mapper_and_indexer(
 @patch("core_api.app.use_cases.ingest.add_documents_to_index")
 @patch("core_api.app.use_cases.ingest.documents_to_llama")
 def test_ingest_documents_handles_partial_indexing(
-    mock_documents_to_llama, mock_add_documents_to_index
+        mock_documents_to_llama, mock_add_documents_to_index
 ):
     """Тест: use case корректно обрабатывает частичную индексацию."""
     space_id = "test-space"
@@ -97,4 +96,3 @@ def test_ingest_documents_handles_partial_indexing(
     result = ingest_documents(space_id, request)
 
     assert result == IngestResponse(indexed=1)
-

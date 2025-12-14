@@ -2,11 +2,10 @@
 Unit тесты для use case выполнения RAG-запросов.
 """
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
+from core_api.app.handlers.query import query_documents
 from core_api.app.models.dto import QueryRequest, QueryResponse
-from core_api.app.use_cases.query import query_documents
 
 
 @patch("core_api.app.use_cases.query.get_vector_store_index")
@@ -151,4 +150,3 @@ def test_query_uses_correct_top_k(mock_get_index):
 
     # Проверяем, что query engine создан с правильным top_k
     mock_index.as_query_engine.assert_called_once_with(similarity_top_k=10)
-

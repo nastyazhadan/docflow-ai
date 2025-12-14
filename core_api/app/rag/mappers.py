@@ -7,10 +7,10 @@
 
 from llama_index.core import Document as LlamaDocument
 
-from core_api.app.models.dto import Document
+from core_api.app.models.dto import PipelineContext
 
 
-def document_to_llama(doc: Document) -> LlamaDocument:
+def document_to_llama(doc: PipelineContext) -> LlamaDocument:
     """
     Преобразует Document DTO в LlamaDocument для индексации.
     
@@ -38,7 +38,7 @@ def document_to_llama(doc: Document) -> LlamaDocument:
     )
 
 
-def documents_to_llama(documents: list[Document]) -> list[LlamaDocument]:
+def documents_to_llama(documents: list[PipelineContext]) -> list[LlamaDocument]:
     """
     Преобразует список Document DTO в список LlamaDocument.
     
@@ -49,4 +49,3 @@ def documents_to_llama(documents: list[Document]) -> list[LlamaDocument]:
     - список LlamaDocument для индексации
     """
     return [document_to_llama(doc) for doc in documents]
-

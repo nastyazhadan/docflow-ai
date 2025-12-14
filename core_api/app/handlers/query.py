@@ -8,11 +8,11 @@ Use case для выполнения RAG-запросов.
 - Форматирование источников
 """
 
-from core_api.app.models.dto import QueryRequest, QueryResponse, SourceItem
+from core_api.app.models.dto import IngestRequest, IngestResponse, IngestItem
 from core_api.app.rag.vector_store import get_vector_store_index
 
 
-def query_documents(space_id: str, request: QueryRequest) -> QueryResponse:
+def query_documents(space_id: str, request: IngestRequest) -> IngestResponse:
     """
     Выполняет RAG-запрос к индексированным документам.
     
@@ -35,7 +35,7 @@ def query_documents(space_id: str, request: QueryRequest) -> QueryResponse:
     response = query_engine.query(request.query)
 
     # Форматируем источники
-    sources: list[SourceItem] = []
+    sources: list[IngestItem] = []
     if hasattr(response, "source_nodes") and response.source_nodes:
         for node in response.source_nodes:
             text_preview = (
@@ -55,10 +55,9 @@ def query_documents(space_id: str, request: QueryRequest) -> QueryResponse:
                 source_data.update(node.metadata)
 
             # Создаём типизированный SourceItem
-            sources.append(SourceItem(**source_data))
+            sources.append(IngestItem(**source_data))
 
-    return QueryResponse(
+    return IngestResponse(
         answer=str(response),
         sources=sources,
     )
-

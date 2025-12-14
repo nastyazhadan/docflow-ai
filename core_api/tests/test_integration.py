@@ -24,7 +24,7 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from core_api.app.core.config import configure_llm_from_env
+from core_api.app.config.config import configure_llm_from_env
 from core_api.app.main import app
 
 

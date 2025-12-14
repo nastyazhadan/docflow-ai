@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
-from scraper_service.core.config import get_settings
+from scraper_service.config.config import get_settings
 from scraper_service.models.dto import (
     FileContent,
     RawItem,

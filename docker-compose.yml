@@ -79,12 +79,14 @@ services:
       - OLLAMA_EMBEDDING_MODEL=${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       - EMBEDDING_DIMENSION=${EMBEDDING_DIMENSION:-768}
+      - DATABASE_URL=${DATABASE_URL}
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    depends_on:
-      - qdrant
     networks:
       - app-net
+    depends_on:
+      - qdrant
+      - postgres
 
   qdrant:
     image: qdrant/qdrant:latest
@@ -98,9 +100,29 @@ services:
     networks:
       - app-net
 
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=docflow
+      - POSTGRES_USER=docflow
+      - POSTGRES_PASSWORD=docflow
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-net
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U docflow -d docflow" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
 networks:
   app-net:
     driver: bridge
 
 volumes:
   n8n_data:
+  postgres_data:

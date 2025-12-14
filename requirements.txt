@@ -5,12 +5,16 @@ uvicorn[standard]
 httpx
 requests
 llama-index
+llama-index-core
 llama-index-llms-ollama
 llama-index-embeddings-ollama
 llama-index-vector-stores-qdrant
 ollama
 qdrant-client
-llama-index-core
 starlette
 streamlit
 requests
+SQLAlchemy
+alembic
+asyncpg
+greenlet

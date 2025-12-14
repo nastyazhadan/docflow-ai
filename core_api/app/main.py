@@ -12,20 +12,22 @@ from typing import AsyncIterator
 from fastapi import FastAPI
 
 from core_api.app.api.v1.endpoints import router as api_v1_router
-from core_api.app.core.config import configure_llm_from_env
+from core_api.app.config.config import configure_llm_from_env
+from core_api.db.session import check_db_connection, dispose_engine, init_engine
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    """
-    Lifecycle-менеджер FastAPI.
-
-    Выполняется при старте приложения:
-    - Настраивает LLM и embeddings на основе переменных окружения
-    - Используется для инициализации глобальных настроек LlamaIndex
-    """
     configure_llm_from_env()
-    yield
+
+    # DB init + fail-fast check
+    init_engine()
+    await check_db_connection()
+
+    try:
+        yield
+    finally:
+        await dispose_engine()
 
 
 # Создаём FastAPI приложение
@@ -36,4 +38,9 @@ app = FastAPI(
 )
 
 # Подключаем роутеры (v1 API)
-app.include_router(api_v1_router)
+# было:
+# app.include_router(api_v1_router)
+
+# стало:
+app.include_router(api_v1_router, prefix="/api/v1")
+app.include_router(api_v1_router, include_in_schema=False)  # backward-compatible без дублей в Swagger

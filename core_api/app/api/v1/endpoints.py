@@ -7,29 +7,30 @@ API endpoints для Core API.
 - Обрабатывает ошибки и преобразует их в HTTP ответы
 """
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Depends, status
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from core_api.app.handlers.ingest import ingest_documents as ingest_documents_use_case
+from core_api.app.handlers.query import query_documents as query_documents_use_case
 from core_api.app.models.dto import (
     IngestRequest,
     IngestResponse,
-    QueryRequest,
-    QueryResponse,
 )
-from core_api.app.use_cases.ingest import ingest_documents as ingest_documents_use_case
-from core_api.app.use_cases.query import query_documents as query_documents_use_case
+from core_api.db.session import get_db
 
 router = APIRouter()
 
 
 @router.get("/health")
 async def health_check():
-    """
-    Health check endpoint.
-
-    Используется для проверки работоспособности сервиса
-    (например, в Docker healthchecks или мониторинге).
-    """
     return {"status": "ok"}
+
+
+@router.get("/health/db")
+async def health_db(session: AsyncSession = Depends(get_db)):
+    await session.execute(text("SELECT 1"))
+    return {"status": "ok", "db": "ok"}
 
 
 @router.post("/spaces/{space_id}/ingest", response_model=IngestResponse)
@@ -57,8 +58,8 @@ async def ingest_documents(space_id: str, request: IngestRequest) -> IngestRespo
         ) from exc
 
 
-@router.post("/spaces/{space_id}/query", response_model=QueryResponse)
-async def query(space_id: str, request: QueryRequest) -> QueryResponse:
+@router.post("/spaces/{space_id}/query", response_model=IngestResponse)
+async def query(space_id: str, request: IngestRequest) -> IngestResponse:
     """
     Выполняет RAG-запрос к индексированным документам в указанном пространстве.
 

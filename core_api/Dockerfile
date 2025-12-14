@@ -26,6 +26,13 @@ RUN pip install --no-cache-dir \
     llama-index-vector-stores-qdrant \
     ollama
 
+# Добавила Postgres
+RUN pip install --no-cache-dir \
+    SQLAlchemy \
+    alembic \
+    asyncpg \
+    greenlet
+
 # Опциональные зависимости для разработки (можно убрать в production)
 RUN pip install --no-cache-dir pytest || true
 

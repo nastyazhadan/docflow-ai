@@ -24,14 +24,13 @@ def ingest_documents(space_id: str, request: IngestRequest) -> IngestResponse:
     - IngestResponse с количеством проиндексированных документов
     """
     # Обработка пустого запроса
-    if not request.documents:
+    if not request.items:
         return IngestResponse(indexed=0)
 
     # Преобразуем DTO в LlamaDocument
-    llama_documents = documents_to_llama(request.documents)
+    llama_documents = documents_to_llama(request.items)
 
     # Добавляем документы в индекс
     indexed = add_documents_to_index(space_id, llama_documents)
 
     return IngestResponse(indexed=indexed)
-
