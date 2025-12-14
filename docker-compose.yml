@@ -84,6 +84,8 @@ services:
       - "host.docker.internal:host-gateway"
     networks:
       - app-net
+    volumes:
+      - ./core_api:/app/core_api
     depends_on:
       - qdrant
       - postgres
