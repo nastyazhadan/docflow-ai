@@ -51,16 +51,34 @@ class RawItem(BaseModel):
     model_config = {"extra": "forbid"}
 
 
+class UploadedFilePayload(BaseModel):
+    name: str = Field(..., min_length=1, max_length=512)
+    content_b64: str = Field(..., min_length=1)
+    encoding: str = Field(default="base64")
+    mime: Optional[str] = None
+    size: Optional[int] = Field(default=None, ge=0)
+    sha256: Optional[str] = None
+
+    @field_validator("encoding")
+    @classmethod
+    def validate_encoding(cls, v: str) -> str:
+        v = (v or "").strip().lower()
+        if v != "base64":
+            raise ValueError("Only 'base64' encoding is supported")
+        return v
+
+    model_config = {"extra": "forbid"}
+
+
 class ScrapeRequest(BaseModel):
     context: PipelineContext
-
-    file_glob: Optional[str] = Field(default=None)
     urls: Optional[List[AnyHttpUrl]] = Field(default=None)
+    files: Optional[List[UploadedFilePayload]] = Field(default=None)
 
     @model_validator(mode="after")
     def validate_non_empty(self) -> "ScrapeRequest":
-        if not self.file_glob and not self.urls:
-            raise ValueError("At least one of file_glob or urls must be provided")
+        if not self.urls and not self.files:
+            raise ValueError("At least one of urls or files must be provided")
         return self
 
     model_config = {"extra": "forbid"}

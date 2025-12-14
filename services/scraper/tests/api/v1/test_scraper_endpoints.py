@@ -1,37 +1,31 @@
-from pathlib import Path
+import base64
 
 from fastapi.testclient import TestClient
 
-from scraper_service.api.v1.endpoints import get_file_reader
 from scraper_service.main import scraper_app
-from scraper_service.services.file_reader import FileReader
 
 client = TestClient(scraper_app)
 
 
-def test_scrape_files_only(tmp_path: Path):
-    (tmp_path / "a.txt").write_text("AAA", encoding="utf-8")
-    (tmp_path / "b.txt").write_text("BBB", encoding="utf-8")
+def _b64(s: str) -> str:
+    return base64.b64encode(s.encode("utf-8")).decode("ascii")
 
-    def override_file_reader() -> FileReader:
-        return FileReader(root_dir=tmp_path)
 
-    scraper_app.dependency_overrides[get_file_reader] = override_file_reader
-
+def test_scrape_files_only():
     resp = client.post(
         "/api/v1/scrape",
         json={
             "context": {"space_id": "space-1"},
-            "file_glob": "**/*.txt",
+            "files": [
+                {"name": "a.txt", "content_b64": _b64("AAA"), "encoding": "base64"},
+                {"name": "b.txt", "content_b64": _b64("BBB"), "encoding": "base64"},
+            ],
         },
     )
-
-    scraper_app.dependency_overrides.clear()
 
     assert resp.status_code == 200
     body = resp.json()
 
-    # NEW: контекст должен вернуться как есть
     assert body["context"]["space_id"] == "space-1"
 
     items = body["items"]
@@ -43,19 +37,22 @@ def test_scrape_files_only(tmp_path: Path):
     for i in items:
         assert i["source"] == "file"
         assert "content" in i
+        assert i.get("url") is None
 
 
 def test_scrape_validation_error():
-    # Ни file_glob, ни urls не переданы — должна быть 422 из-за валидации
-    # NEW: но context обязателен, поэтому 422 всё равно (причина может быть другая)
+    # Ни urls, ни files не переданы — должна быть 422 из-за валидации
     resp = client.post("/api/v1/scrape", json={"context": {"space_id": "space-1"}})
     assert resp.status_code == 422
 
 
 def test_space_id_strips_and_rejects_blank():
-    # space_id из пробелов должен дать 422
+    # space_id из пробелов должен дать 422 (даже если files есть)
     resp = client.post(
         "/api/v1/scrape",
-        json={"context": {"space_id": "   "}, "file_glob": "**/*.txt"},
+        json={
+            "context": {"space_id": "   "},
+            "files": [{"name": "a.txt", "content_b64": _b64("AAA"), "encoding": "base64"}],
+        },
     )
     assert resp.status_code == 422

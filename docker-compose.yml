@@ -29,10 +29,6 @@ services:
     restart: unless-stopped
     ports:
       - "8000:8000"
-    environment:
-      - SCRAPER_ROOT_DIR=/data/docs
-    volumes:
-      - ./data:/data/docs:ro
     networks:
       - app-net
 

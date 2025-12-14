@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from pathlib import Path
+import base64
+from datetime import datetime, timezone
 from typing import Dict, Any, List
 
 from fastapi.testclient import TestClient
@@ -9,37 +10,34 @@ SPACE_ID = "test-space"
 
 
 def _ctx() -> Dict[str, Any]:
-    return {"space_id": SPACE_ID}
+    return {
+        "space_id": SPACE_ID,
+        "started_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+    }
 
 
-def _create_file(root_dir: Path, name: str, content: str) -> Path:
-    path = root_dir / name
-    path.write_text(content, encoding="utf-8")
-    return path
+def _b64(s: str) -> str:
+    return base64.b64encode(s.encode("utf-8")).decode("ascii")
 
 
-def _run_pipeline_for_files(
+def _run_pipeline_for_uploaded_files(
         *,
-        scraper_root_dir: Path,
         scraper_client: TestClient,
         cleaner_client: TestClient,
         normalizer_client: TestClient,
         indexer_client: TestClient,
-        file_patterns: str,
+        files: list[dict[str, str]],
 ) -> Dict[str, Any]:
     """
     Полный прогон:
-    scraper (/api/v1/scrape) -> cleaner (/clean) -> normalizer (/normalize)
+    scraper (/api/v1/scrape c files) -> cleaner (/clean) -> normalizer (/normalize)
     -> indexer (/index/{space_id})
-
-    Возвращает словарь с промежуточными данными для ассертов.
     """
     context = _ctx()
 
-    # 1. scraper
     scrape_resp = scraper_client.post(
         "/api/v1/scrape",
-        json={"context": context, "file_glob": file_patterns},
+        json={"context": context, "files": files},
     )
     assert scrape_resp.status_code == 200
     scraped = scrape_resp.json()
@@ -48,13 +46,12 @@ def _run_pipeline_for_files(
     raw_items: List[Dict[str, Any]] = scraped["items"]
     assert raw_items, "scraper must return at least one item"
 
-    # 2. cleaner
     clean_req = {
         "context": context,
         "items": [
             {
                 "source": item["source"],
-                "path": item["path"],
+                "path": item.get("path"),
                 "url": item.get("url"),
                 "content": item["content"],
             }
@@ -69,7 +66,6 @@ def _run_pipeline_for_files(
     cleaned_items: List[Dict[str, Any]] = cleaned["items"]
     assert len(cleaned_items) == len(raw_items)
 
-    # 3. normalizer
     norm_req = {"context": context, "items": cleaned_items}
     norm_resp = normalizer_client.post("/normalize", json=norm_req)
     assert norm_resp.status_code == 200
@@ -79,14 +75,12 @@ def _run_pipeline_for_files(
     docs: List[Dict[str, Any]] = normalized["items"]
     assert docs, "normalizer must produce at least one document"
 
-    # sanity-check по метаданным
     for doc in docs:
         meta = doc["metadata"]
         assert meta["source"]
         assert meta["path"]
         assert 0 <= meta["chunk_index"] < meta["total_chunks"]
 
-    # 4. indexer
     index_req = {"context": context, "items": docs}
     index_resp = indexer_client.post(f"/index/{SPACE_ID}", json=index_req)
     assert index_resp.status_code == 200
@@ -190,25 +184,21 @@ def _run_pipeline_for_http(
 
 
 def test_full_pipeline_single_file(
-        scraper_root_dir: Path,
         scraper_client: TestClient,
         cleaner_client: TestClient,
         normalizer_client: TestClient,
         indexer_client: TestClient,
 ):
-    _create_file(
-        scraper_root_dir,
-        "doc.txt",
-        "Hello world. This is a test document.",
-    )
+    files = [
+        {"name": "doc.txt", "content_b64": _b64("Hello world. This is a test document."), "encoding": "base64"}
+    ]
 
-    result = _run_pipeline_for_files(
-        scraper_root_dir=scraper_root_dir,
+    result = _run_pipeline_for_uploaded_files(
         scraper_client=scraper_client,
         cleaner_client=cleaner_client,
         normalizer_client=normalizer_client,
         indexer_client=indexer_client,
-        file_patterns="*.txt",
+        files=files,
     )
 
     raw_items = result["raw_items"]
@@ -224,35 +214,34 @@ def test_full_pipeline_single_file(
     assert meta0["chunk_index"] == 0
     assert 1 <= meta0["total_chunks"] == len(docs)
 
-    # indexer должен был вызвать Core ingest ровно 1 раз
     from indexer_service.main import indexer_app  # type: ignore[import-untyped]
 
     calls = getattr(indexer_app.state, "ingest_calls", [])
     assert len(calls) == 1
     call = calls[0]
     assert call["space_id"] == SPACE_ID
-    assert len(call["payload"]["documents"]) == len(docs)
+    assert len(call["payload"]["items"]) == len(docs)
 
 
 def test_full_pipeline_multiple_files_chunk_metadata(
-        scraper_root_dir: Path,
         scraper_client: TestClient,
         cleaner_client: TestClient,
         normalizer_client: TestClient,
         indexer_client: TestClient,
 ):
-    _create_file(scraper_root_dir, "short.txt", "Short text.")
-
     long_text = "Sentence one. " + "Sentence two " * 200
-    _create_file(scraper_root_dir, "long.txt", long_text)
 
-    result = _run_pipeline_for_files(
-        scraper_root_dir=scraper_root_dir,
+    files = [
+        {"name": "short.txt", "content_b64": _b64("Short text."), "encoding": "base64"},
+        {"name": "long.txt", "content_b64": _b64(long_text), "encoding": "base64"},
+    ]
+
+    result = _run_pipeline_for_uploaded_files(
         scraper_client=scraper_client,
         cleaner_client=cleaner_client,
         normalizer_client=normalizer_client,
         indexer_client=indexer_client,
-        file_patterns="*.txt",
+        files=files,
     )
 
     docs = result["documents"]
@@ -277,7 +266,7 @@ def test_indexer_boundary_no_items(indexer_client: TestClient):
 
     resp = indexer_client.post(
         f"/index/{SPACE_ID}",
-        json={"context": {"space_id": SPACE_ID}, "items": []},
+        json={"context": _ctx(), "items": []},
     )
     assert resp.status_code == 200
     data = resp.json()

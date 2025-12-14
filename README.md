@@ -2,6 +2,13 @@
 
 Система индексации документов и RAG (Retrieval-Augmented Generation) на основе LlamaIndex и Qdrant.
 
+Запустить web:
+
+ ```bash
+ cd ui
+ streamlit run .\web_app.py
+ ```
+
 ## ⚠️ Важно: Требования перед запуском
 
 **Система работает только локально с Ollama. Перед запуском необходимо:**
