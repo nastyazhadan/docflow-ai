@@ -153,7 +153,8 @@ def test_index_uses_context_space_id_over_path():
         assert body["context"]["space_id"] == "CTX_SPACE"
         assert body["indexed"] == 1
 
-        assert dummy.last_url == "/spaces/CTX_SPACE/ingest"
-        assert "context" in dummy.last_json
-        assert "items" in dummy.last_json
-        assert len(dummy.last_json["items"]) == 1
+    # должен звать Core API с префиксом /api/v1
+    assert dummy.last_url == "/api/v1/spaces/CTX_SPACE/ingest"
+    assert "context" in dummy.last_json
+    assert "items" in dummy.last_json
+    assert len(dummy.last_json["items"]) == 1

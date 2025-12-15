@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from contextlib import asynccontextmanager
+import logging
 from typing import AsyncIterator
 
 import httpx
@@ -12,6 +13,8 @@ from indexer_service.services.indexer import build_ingest_payload
 
 API_HOST = os.getenv("API_HOST", "api")
 API_PORT = int(os.getenv("API_PORT", "8000"))
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -33,7 +36,10 @@ async def _call_core_ingest(
         space_id: str,
         payload: dict,
 ) -> int:
-    response = await client.post(f"/spaces/{space_id}/ingest", json=payload)
+    # Core API endpoints живут под префиксом /api/v1
+    ingest_url = f"/api/v1/spaces/{space_id}/ingest"
+    logger.info("Ingest URL: %s", ingest_url)
+    response = await client.post(ingest_url, json=payload)
 
     try:
         response.raise_for_status()
