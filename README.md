@@ -5,7 +5,8 @@
 Тогда для нового разработчика порядок такой:
 
 docker compose up -d postgres
-docker compose up -d --build apidocker compose exec api ls -la /app/core_api/alembic/versions
+docker compose up -d --build api
+docker compose exec api ls -la /app/core_api/alembic/versions
 docker compose exec api alembic -c /app/core_api/alembic/alembic.ini upgrade head
 
 И всё — таблицы появятся автоматически.
