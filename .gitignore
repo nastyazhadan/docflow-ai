@@ -13,3 +13,5 @@ __pycache__/
 qdrant_data/
 .DS_Store
 /infrastructure/volumes/qdrant-data/
+/infrastructure/volumes/n8n_data/
+/infrastructure/volumes/postgres_data/
