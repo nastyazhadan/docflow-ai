@@ -98,7 +98,7 @@ services:
       - "6333:6333"   # HTTP API
       - "6334:6334"   # gRPC (может пригодиться позже)
     volumes:
-      - ./qdrant_data:/qdrant/storage
+      - .infrastructure/volumes/qdrant_data:/qdrant/storage
     networks:
       - app-net
 
