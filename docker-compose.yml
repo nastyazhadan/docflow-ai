@@ -19,7 +19,7 @@ services:
       - N8N_PROTOCOL=http
       - NODE_ENV=production
     volumes:
-      - ./infrastructure/volumes/n8n_data:/n8n/node/.n8n
+      - n8n_data:/home/node/.n8n
     networks:
       - app-net
 
@@ -124,3 +124,6 @@ services:
 networks:
   app-net:
     driver: bridge
+
+volumes:
+  n8n_data:
