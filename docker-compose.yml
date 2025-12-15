@@ -19,7 +19,7 @@ services:
       - N8N_PROTOCOL=http
       - NODE_ENV=production
     volumes:
-      - n8n_data:/home/node/.n8n
+      - ./infrastructure/volumes/n8n_data:/n8n/node/.n8n
     networks:
       - app-net
 
@@ -98,7 +98,7 @@ services:
       - "6333:6333"   # HTTP API
       - "6334:6334"   # gRPC (может пригодиться позже)
     volumes:
-      - .infrastructure/volumes/qdrant_data:/qdrant/storage
+      - ./infrastructure/volumes/qdrant_data:/qdrant/storage
     networks:
       - app-net
 
@@ -112,7 +112,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/volumes/postgres_data:/postgresql/data
     networks:
       - app-net
     healthcheck:
@@ -124,7 +124,3 @@ services:
 networks:
   app-net:
     driver: bridge
-
-volumes:
-  n8n_data:
-  postgres_data:
