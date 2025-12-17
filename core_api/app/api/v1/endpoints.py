@@ -7,16 +7,18 @@ API endpoints для Core API.
 - Обрабатывает ошибки и преобразует их в HTTP ответы
 """
 
+import uuid
+
 from fastapi import APIRouter, HTTPException, Depends, status
-from sqlalchemy import text
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core_api.app.auth.deps import Principal, get_optional_principal
 from core_api.app.handlers.ingest import ingest_documents as ingest_documents_use_case
 from core_api.app.handlers.query import query_documents as query_documents_use_case
-from core_api.app.models.dto import (
-    IngestRequest,
-    IngestResponse,
-)
+from core_api.app.models.dto import IngestRequest, IngestResponse, QueryRequest, QueryResponse
+from core_api.app.models.sql.knowledge_space import KnowledgeSpace
+from core_api.app.models.sql.user import UserRole
 from core_api.db.session import get_db
 
 router = APIRouter()
@@ -34,7 +36,12 @@ async def health_db(session: AsyncSession = Depends(get_db)):
 
 
 @router.post("/spaces/{space_id}/ingest", response_model=IngestResponse)
-async def ingest_documents(space_id: str, request: IngestRequest) -> IngestResponse:
+async def ingest_documents(
+    space_id: str,
+    request: IngestRequest,
+    principal: Principal | None = Depends(get_optional_principal),
+    session: AsyncSession = Depends(get_db),
+) -> IngestResponse:
     """
     Индексирует документы в векторное хранилище Qdrant для указанного пространства.
 
@@ -50,7 +57,24 @@ async def ingest_documents(space_id: str, request: IngestRequest) -> IngestRespo
     - indexed: количество успешно проиндексированных документов
     """
     try:
+        # Если запрос аутентифицирован — пространство должно существовать в БД для tenant.
+        if principal is not None:
+            if principal.role == UserRole.VIEWER:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+
+            tenant_uuid = uuid.UUID(principal.tenant_id)
+            ks = await session.scalar(
+                select(KnowledgeSpace).where(
+                    KnowledgeSpace.tenant_id == tenant_uuid,
+                    KnowledgeSpace.space_key == space_id,
+                )
+            )
+            if ks is None:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Space not found")
+
         return ingest_documents_use_case(space_id, request)
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -58,8 +82,13 @@ async def ingest_documents(space_id: str, request: IngestRequest) -> IngestRespo
         ) from exc
 
 
-@router.post("/spaces/{space_id}/query", response_model=IngestResponse)
-async def query(space_id: str, request: IngestRequest) -> IngestResponse:
+@router.post("/spaces/{space_id}/query", response_model=QueryResponse)
+async def query(
+    space_id: str,
+    request: QueryRequest,
+    principal: Principal | None = Depends(get_optional_principal),
+    session: AsyncSession = Depends(get_db),
+) -> QueryResponse:
     """
     Выполняет RAG-запрос к индексированным документам в указанном пространстве.
 
@@ -78,7 +107,21 @@ async def query(space_id: str, request: IngestRequest) -> IngestResponse:
     - sources: список источников (чанков), использованных для генерации ответа
     """
     try:
+        # Если запрос аутентифицирован — пространство должно существовать в БД для tenant.
+        if principal is not None:
+            tenant_uuid = uuid.UUID(principal.tenant_id)
+            ks = await session.scalar(
+                select(KnowledgeSpace).where(
+                    KnowledgeSpace.tenant_id == tenant_uuid,
+                    KnowledgeSpace.space_key == space_id,
+                )
+            )
+            if ks is None:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Space not found")
+
         return query_documents_use_case(space_id, request)
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

@@ -8,7 +8,7 @@ from core_api.app.handlers.query import query_documents
 from core_api.app.models.dto import QueryRequest, QueryResponse
 
 
-@patch("core_api.app.use_cases.query.get_vector_store_index")
+@patch("core_api.app.handlers.query.get_vector_store_index")
 def test_query_formats_sources_when_source_nodes_present(mock_get_index):
     """Тест: use case корректно форматирует источники, когда source_nodes присутствуют."""
     # Подготовка
@@ -80,7 +80,7 @@ def test_query_formats_sources_when_source_nodes_present(mock_get_index):
     mock_query_engine.query.assert_called_once_with("What is Python?")
 
 
-@patch("core_api.app.use_cases.query.get_vector_store_index")
+@patch("core_api.app.handlers.query.get_vector_store_index")
 def test_query_handles_no_source_nodes(mock_get_index):
     """Тест: use case корректно обрабатывает случай, когда source_nodes отсутствуют."""
     space_id = "test-space"
@@ -105,7 +105,7 @@ def test_query_handles_no_source_nodes(mock_get_index):
     assert result.sources == []
 
 
-@patch("core_api.app.use_cases.query.get_vector_store_index")
+@patch("core_api.app.handlers.query.get_vector_store_index")
 def test_query_handles_empty_source_nodes(mock_get_index):
     """Тест: use case корректно обрабатывает пустой список source_nodes."""
     space_id = "test-space"
@@ -129,7 +129,7 @@ def test_query_handles_empty_source_nodes(mock_get_index):
     assert result.sources == []
 
 
-@patch("core_api.app.use_cases.query.get_vector_store_index")
+@patch("core_api.app.handlers.query.get_vector_store_index")
 def test_query_uses_correct_top_k(mock_get_index):
     """Тест: use case использует правильный top_k из запроса."""
     space_id = "test-space"

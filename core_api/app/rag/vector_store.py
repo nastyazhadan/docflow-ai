@@ -7,6 +7,7 @@
 - Работу с векторными индексами через LlamaIndex
 """
 
+import logging
 import os
 import re
 from functools import lru_cache
@@ -16,6 +17,8 @@ from llama_index.core import Document as LlamaDocument, StorageContext, VectorSt
 from llama_index.vector_stores.qdrant import QdrantVectorStore  # type: ignore[import-untyped]
 from qdrant_client import QdrantClient  # type: ignore[import-untyped]
 from qdrant_client.models import Distance, VectorParams  # type: ignore[import-untyped]
+
+logger = logging.getLogger(__name__)
 
 # Настройки подключения к Qdrant из переменных окружения
 # В Docker Compose QDRANT_HOST будет "qdrant" (имя сервиса)
@@ -117,6 +120,12 @@ def get_vector_store_index(space_id: str) -> VectorStoreIndex:
     client = get_qdrant_client()
     # Убеждаемся, что коллекция существует
     collection_name = get_or_create_collection(space_id, client)
+    
+    logger.info(
+        "[VECTOR_STORE] Getting index for space_id=%s collection_name=%s",
+        space_id,
+        collection_name,
+    )
 
     # Создаём адаптер LlamaIndex для работы с Qdrant
     # Это позволяет LlamaIndex использовать Qdrant как векторное хранилище
@@ -135,6 +144,22 @@ def get_vector_store_index(space_id: str) -> VectorStoreIndex:
         vector_store=vector_store,
         storage_context=storage_context,
     )
+    
+    # Проверяем количество точек в коллекции для отладки
+    try:
+        collection_info = client.get_collection(collection_name)
+        points_count = collection_info.points_count
+        logger.info(
+            "[VECTOR_STORE] Collection %s has %d points",
+            collection_name,
+            points_count,
+        )
+    except Exception as e:
+        logger.warning(
+            "[VECTOR_STORE] Failed to get collection info for %s: %s",
+            collection_name,
+            e,
+        )
 
     return index
 

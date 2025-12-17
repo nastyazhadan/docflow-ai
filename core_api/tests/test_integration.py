@@ -65,6 +65,11 @@ def client() -> Iterator[TestClient]:
     
     Настраивает LLM перед запуском тестов и очищает после.
     """
+    # Core API теперь fail-fast проверяет БД на старте (lifespan).
+    # Если DATABASE_URL не задан — интеграционные тесты запустить невозможно.
+    if not os.getenv("DATABASE_URL"):
+        pytest.skip("DATABASE_URL is not set; skipping Core API integration tests that require DB")
+
     # Для локальных тестов используем localhost вместо host.docker.internal
     original_ollama_url = os.getenv("OLLAMA_BASE_URL")
     if not original_ollama_url or "host.docker.internal" in original_ollama_url:

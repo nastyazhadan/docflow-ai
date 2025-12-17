@@ -8,6 +8,20 @@
 # Система работает ТОЛЬКО локально с Ollama (без OpenAI).
 
 services:
+  ui:
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8010:8000"
+    environment:
+      - CORE_API_BASE_URL=http://api:8000
+    depends_on:
+      - api
+    networks:
+      - app-net
+
   n8n:
     image: n8nio/n8n:latest
     restart: unless-stopped

@@ -5,7 +5,7 @@ Unit тесты для use case индексации документов.
 from unittest.mock import Mock, patch
 
 from core_api.app.handlers.ingest import ingest_documents
-from core_api.app.models.dto import Document, IngestRequest, IngestResponse, Metadata
+from core_api.app.models.dto import IngestItem, IngestRequest, IngestResponse
 
 
 def test_ingest_empty_documents_returns_zero():
@@ -15,39 +15,39 @@ def test_ingest_empty_documents_returns_zero():
     assert result == IngestResponse(indexed=0)
 
 
-@patch("core_api.app.use_cases.ingest.add_documents_to_index")
-@patch("core_api.app.use_cases.ingest.documents_to_llama")
+@patch("core_api.app.handlers.ingest.add_documents_to_index")
+@patch("core_api.app.handlers.ingest.documents_to_llama")
 def test_ingest_documents_calls_mapper_and_indexer(
         mock_documents_to_llama, mock_add_documents_to_index
 ):
     """Тест: use case вызывает mapper и indexer с правильными параметрами."""
     # Подготовка
     space_id = "test-space"
-    doc1 = Document(
+    doc1 = IngestItem(
         external_id="doc1",
         text="Test text 1",
-        metadata=Metadata(
-            source="file",
-            path="/path/to/file.txt",
-            url=None,
-            title="Test Document",
-            created_at="2024-01-01T00:00:00Z",
-            chunk_index=0,
-            total_chunks=1,
-        ),
+        metadata={
+            "source": "file",
+            "path": "/path/to/file.txt",
+            "url": None,
+            "title": "Test Document",
+            "created_at": "2024-01-01T00:00:00Z",
+            "chunk_index": 0,
+            "total_chunks": 1,
+        },
     )
-    doc2 = Document(
+    doc2 = IngestItem(
         external_id="doc2",
         text="Test text 2",
-        metadata=Metadata(
-            source="file",
-            path="/path/to/file2.txt",
-            url=None,
-            title="Test Document 2",
-            created_at="2024-01-01T00:00:00Z",
-            chunk_index=0,
-            total_chunks=1,
-        ),
+        metadata={
+            "source": "file",
+            "path": "/path/to/file2.txt",
+            "url": None,
+            "title": "Test Document 2",
+            "created_at": "2024-01-01T00:00:00Z",
+            "chunk_index": 0,
+            "total_chunks": 1,
+        },
     )
     request = IngestRequest(documents=[doc1, doc2])
 
@@ -66,25 +66,25 @@ def test_ingest_documents_calls_mapper_and_indexer(
     mock_add_documents_to_index.assert_called_once_with(space_id, [mock_llama_doc1, mock_llama_doc2])
 
 
-@patch("core_api.app.use_cases.ingest.add_documents_to_index")
-@patch("core_api.app.use_cases.ingest.documents_to_llama")
+@patch("core_api.app.handlers.ingest.add_documents_to_index")
+@patch("core_api.app.handlers.ingest.documents_to_llama")
 def test_ingest_documents_handles_partial_indexing(
         mock_documents_to_llama, mock_add_documents_to_index
 ):
     """Тест: use case корректно обрабатывает частичную индексацию."""
     space_id = "test-space"
-    doc = Document(
+    doc = IngestItem(
         external_id="doc1",
         text="Test text",
-        metadata=Metadata(
-            source="file",
-            path="/path/to/file.txt",
-            url=None,
-            title="Test Document",
-            created_at="2024-01-01T00:00:00Z",
-            chunk_index=0,
-            total_chunks=1,
-        ),
+        metadata={
+            "source": "file",
+            "path": "/path/to/file.txt",
+            "url": None,
+            "title": "Test Document",
+            "created_at": "2024-01-01T00:00:00Z",
+            "chunk_index": 0,
+            "total_chunks": 1,
+        },
     )
     request = IngestRequest(documents=[doc])
 

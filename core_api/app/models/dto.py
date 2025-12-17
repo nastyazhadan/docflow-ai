@@ -44,3 +44,31 @@ class IngestRequest(BaseModel):
 
 class IngestResponse(BaseModel):
     indexed: int
+
+
+class QueryRequest(BaseModel):
+    """Запрос для RAG-поиска по пространству."""
+
+    query: str = Field(..., description="Текст вопроса пользователя")
+    top_k: int = Field(5, ge=1, le=50, description="Количество наиболее релевантных чанков")
+
+
+class SourceItem(BaseModel):
+    """Один источник (документ/чанк), использованный для ответа."""
+
+    text: str = Field(..., description="Превью текста чанка (до 200 символов)")
+    score: Optional[float] = Field(None, description="Оценка релевантности чанка к запросу")
+
+    model_config = {
+        "extra": "allow",  # позволяем дополнительные произвольные поля метаданных
+    }
+
+
+class QueryResponse(BaseModel):
+    """Ответ на RAG-запрос."""
+
+    answer: str = Field(..., description="Ответ LLM на основе найденных документов")
+    sources: List[SourceItem] = Field(
+        default_factory=list,
+        description="Список источников (чанков) с метаданными, использованных для генерации ответа",
+    )
