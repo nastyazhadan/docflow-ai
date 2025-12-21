@@ -22,10 +22,16 @@ if str(_project_root) not in sys.path:
 
 import httpx
 import pytest
+import pytest_asyncio
 from fastapi.testclient import TestClient
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from core_api.app.config.config import configure_llm_from_env
 from core_api.app.main import app
+from core_api.app.models.sql.knowledge_space import KnowledgeSpace
+from core_api.app.models.sql.tenant import Tenant
+from core_api.db.session import get_db, init_engine
 
 
 def is_ollama_available() -> bool:
@@ -96,9 +102,68 @@ def client() -> Iterator[TestClient]:
 
 
 @pytest.fixture
-def test_space_id() -> str:
-    """Фикстура для генерации уникального space_id для каждого теста."""
-    return get_test_space_id()
+def test_space_id() -> Iterator[str]:
+    """
+    Фикстура для создания тестового space в БД.
+    
+    Создаёт Tenant и KnowledgeSpace в БД перед тестом и возвращает space_key.
+    Использует синхронный SQL для избежания проблем с asyncio event loop.
+    """
+    if not os.getenv("DATABASE_URL"):
+        pytest.skip("DATABASE_URL is not set; skipping tests that require DB")
+    
+    space_key = get_test_space_id()
+    
+    # Используем синхронный SQL для создания space
+    import psycopg2
+    from urllib.parse import urlparse
+    
+    db_url = os.getenv("DATABASE_URL")
+    # Преобразуем asyncpg URL в psycopg2 формат
+    if "asyncpg" in db_url:
+        db_url = db_url.replace("postgresql+asyncpg://", "postgresql://")
+    
+    parsed = urlparse(db_url)
+    conn = psycopg2.connect(
+        host=parsed.hostname or "localhost",
+        port=parsed.port or 5432,
+        database=parsed.path.lstrip("/") if parsed.path else "docflow",
+        user=parsed.username or "docflow",
+        password=parsed.password or "docflow",
+    )
+    cur = conn.cursor()
+    
+    try:
+        # Создаём тестовый tenant
+        tenant_id = uuid.uuid4()
+        tenant_slug = f"test-tenant-{uuid.uuid4().hex[:8]}"
+        tenant_name = f"Test Tenant {uuid.uuid4().hex[:8]}"
+        
+        cur.execute(
+            "INSERT INTO tenants (id, slug, name) VALUES (%s, %s, %s) RETURNING id",
+            (str(tenant_id), tenant_slug, tenant_name),
+        )
+        cur.fetchone()
+        
+        # Создаём тестовый space
+        space_id = uuid.uuid4()
+        cur.execute(
+            "INSERT INTO knowledge_spaces (id, tenant_id, space_key, name) VALUES (%s, %s, %s, %s) RETURNING id",
+            (str(space_id), str(tenant_id), space_key, f"Test Space {space_key}"),
+        )
+        cur.fetchone()
+        
+        conn.commit()
+        
+        yield space_key
+        
+        # Очистка после теста
+        cur.execute("DELETE FROM knowledge_spaces WHERE space_key = %s", (space_key,))
+        cur.execute("DELETE FROM tenants WHERE id = %s", (str(tenant_id),))
+        conn.commit()
+    finally:
+        cur.close()
+        conn.close()
 
 
 @pytest.fixture(autouse=True)

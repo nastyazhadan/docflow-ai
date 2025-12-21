@@ -15,6 +15,7 @@ from fastapi import FastAPI
 from core_api.app.api.v1.endpoints import router as api_v1_router
 from core_api.app.auth.router import router as auth_router
 from core_api.app.spaces.router import router as spaces_router
+from core_api.app.sources.router import router as sources_router
 from core_api.app.config.config import configure_llm_from_env
 from core_api.db.session import check_db_connection, dispose_engine, init_engine
 
@@ -59,3 +60,6 @@ app.include_router(auth_router, prefix="/api/v1")
 
 # Spaces management (только v1)
 app.include_router(spaces_router, prefix="/api/v1")
+
+# Sources management (только v1)
+app.include_router(sources_router, prefix="/api/v1")

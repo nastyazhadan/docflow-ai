@@ -2,6 +2,7 @@
 Unit тесты для use case выполнения RAG-запросов.
 """
 
+import uuid
 from unittest.mock import Mock, patch
 
 from core_api.app.handlers.query import query_documents
@@ -12,7 +13,7 @@ from core_api.app.models.dto import QueryRequest, QueryResponse
 def test_query_formats_sources_when_source_nodes_present(mock_get_index):
     """Тест: use case корректно форматирует источники, когда source_nodes присутствуют."""
     # Подготовка
-    space_id = "test-space"
+    knowledge_space_id = uuid.uuid4()
     request = QueryRequest(query="What is Python?", top_k=3)
 
     # Моки
@@ -44,7 +45,7 @@ def test_query_formats_sources_when_source_nodes_present(mock_get_index):
     mock_get_index.return_value = mock_index
 
     # Выполнение
-    result = query_documents(space_id, request)
+    result = query_documents(knowledge_space_id, request)
 
     # Проверка
     assert isinstance(result, QueryResponse)
@@ -75,7 +76,7 @@ def test_query_formats_sources_when_source_nodes_present(mock_get_index):
     assert not hasattr(source3, "path") or getattr(source3, "path", None) is None
 
     # Проверка вызовов
-    mock_get_index.assert_called_once_with(space_id)
+    mock_get_index.assert_called_once_with(knowledge_space_id)
     mock_index.as_query_engine.assert_called_once_with(similarity_top_k=3)
     mock_query_engine.query.assert_called_once_with("What is Python?")
 
@@ -83,7 +84,7 @@ def test_query_formats_sources_when_source_nodes_present(mock_get_index):
 @patch("core_api.app.handlers.query.get_vector_store_index")
 def test_query_handles_no_source_nodes(mock_get_index):
     """Тест: use case корректно обрабатывает случай, когда source_nodes отсутствуют."""
-    space_id = "test-space"
+    knowledge_space_id = uuid.uuid4()
     request = QueryRequest(query="Test question", top_k=5)
 
     mock_index = Mock()
@@ -98,7 +99,7 @@ def test_query_handles_no_source_nodes(mock_get_index):
     mock_index.as_query_engine.return_value = mock_query_engine
     mock_get_index.return_value = mock_index
 
-    result = query_documents(space_id, request)
+    result = query_documents(knowledge_space_id, request)
 
     assert isinstance(result, QueryResponse)
     assert result.answer == "Test answer"
@@ -108,7 +109,7 @@ def test_query_handles_no_source_nodes(mock_get_index):
 @patch("core_api.app.handlers.query.get_vector_store_index")
 def test_query_handles_empty_source_nodes(mock_get_index):
     """Тест: use case корректно обрабатывает пустой список source_nodes."""
-    space_id = "test-space"
+    knowledge_space_id = uuid.uuid4()
     request = QueryRequest(query="Test question", top_k=5)
 
     mock_index = Mock()
@@ -122,7 +123,7 @@ def test_query_handles_empty_source_nodes(mock_get_index):
     mock_index.as_query_engine.return_value = mock_query_engine
     mock_get_index.return_value = mock_index
 
-    result = query_documents(space_id, request)
+    result = query_documents(knowledge_space_id, request)
 
     assert isinstance(result, QueryResponse)
     assert result.answer == "Test answer"
@@ -132,7 +133,7 @@ def test_query_handles_empty_source_nodes(mock_get_index):
 @patch("core_api.app.handlers.query.get_vector_store_index")
 def test_query_uses_correct_top_k(mock_get_index):
     """Тест: use case использует правильный top_k из запроса."""
-    space_id = "test-space"
+    knowledge_space_id = uuid.uuid4()
     request = QueryRequest(query="Test question", top_k=10)
 
     mock_index = Mock()
@@ -146,7 +147,7 @@ def test_query_uses_correct_top_k(mock_get_index):
     mock_index.as_query_engine.return_value = mock_query_engine
     mock_get_index.return_value = mock_index
 
-    query_documents(space_id, request)
+    query_documents(knowledge_space_id, request)
 
     # Проверяем, что query engine создан с правильным top_k
     mock_index.as_query_engine.assert_called_once_with(similarity_top_k=10)

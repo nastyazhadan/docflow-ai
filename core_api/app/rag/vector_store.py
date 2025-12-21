@@ -3,13 +3,16 @@
 
 Этот модуль отвечает за:
 - Подключение к Qdrant
-- Создание коллекций для каждого пространства знаний (space_id)
+- Создание коллекций для каждого пространства знаний (по UUID KnowledgeSpace)
 - Работу с векторными индексами через LlamaIndex
+
+Коллекции именуются как ks_{knowledge_space_uuid} для гарантированной уникальности
+и изоляции данных между tenant'ами.
 """
 
 import logging
 import os
-import re
+import uuid
 from functools import lru_cache
 from typing import Optional
 
@@ -27,23 +30,6 @@ QDRANT_PORT = int(os.getenv("QDRANT_PORT", "6333"))
 QDRANT_URL = f"http://{QDRANT_HOST}:{QDRANT_PORT}"
 
 
-def sanitize_space_id(space_id: str) -> str:
-    """
-    Санитизирует space_id для использования в имени коллекции Qdrant.
-    
-    Разрешает только символы [a-zA-Z0-9_-], остальные заменяет на _.
-    
-    Параметры:
-    - space_id: исходный идентификатор пространства
-    
-    Возвращает:
-    - Санитизированную строку, безопасную для использования в имени коллекции
-    """
-    # Заменяем все неразрешённые символы на _
-    sanitized = re.sub(r"[^a-zA-Z0-9_-]", "_", space_id)
-    return sanitized
-
-
 @lru_cache(maxsize=1)
 def get_qdrant_client() -> QdrantClient:
     """
@@ -57,19 +43,20 @@ def get_qdrant_client() -> QdrantClient:
     return QdrantClient(url=QDRANT_URL, prefer_grpc=False)
 
 
-def get_or_create_collection(space_id: str, client: Optional[QdrantClient] = None) -> str:
+def get_or_create_collection(knowledge_space_id: uuid.UUID, client: Optional[QdrantClient] = None) -> str:
     """
     Создаёт коллекцию в Qdrant для указанного пространства знаний, если её нет.
     
-    Каждое пространство знаний (space_id) имеет свою коллекцию в Qdrant.
-    Это позволяет изолировать данные разных пространств.
+    Каждое пространство знаний (KnowledgeSpace) имеет свою коллекцию в Qdrant.
+    Имя коллекции формируется из UUID KnowledgeSpace для гарантированной уникальности
+    и изоляции данных между tenant'ами.
     
     Параметры:
-    - space_id: идентификатор пространства знаний
+    - knowledge_space_id: UUID пространства знаний (KnowledgeSpace.id)
     - client: опциональный клиент Qdrant (если не передан, используется кэшированный)
     
     Возвращает:
-    - Имя коллекции в формате "space_{sanitized_space_id}"
+    - Имя коллекции в формате "ks_{knowledge_space_uuid}" (UUID без дефисов)
     """
     qdrant_client: QdrantClient
     if client is None:
@@ -77,9 +64,8 @@ def get_or_create_collection(space_id: str, client: Optional[QdrantClient] = Non
     else:
         qdrant_client = client
 
-    # Санитизируем space_id и формируем имя коллекции
-    sanitized_id = sanitize_space_id(space_id)
-    collection_name = f"space_{sanitized_id}"
+    # Формируем имя коллекции из UUID (без дефисов для совместимости с Qdrant)
+    collection_name = f"ks_{knowledge_space_id.hex}"
 
     # Проверяем существование коллекции через get_collection (более эффективно)
     try:
@@ -97,11 +83,16 @@ def get_or_create_collection(space_id: str, client: Optional[QdrantClient] = Non
                 distance=Distance.COSINE,  # Метрика расстояния для поиска (косинусное расстояние)
             ),
         )
+        logger.info(
+            "[VECTOR_STORE] Created collection %s for knowledge_space_id=%s",
+            collection_name,
+            knowledge_space_id,
+        )
 
     return collection_name
 
 
-def get_vector_store_index(space_id: str) -> VectorStoreIndex:
+def get_vector_store_index(knowledge_space_id: uuid.UUID) -> VectorStoreIndex:
     """
     Получает или создаёт VectorStoreIndex для указанного пространства знаний.
     
@@ -112,18 +103,18 @@ def get_vector_store_index(space_id: str) -> VectorStoreIndex:
     - Работы с метаданными
     
     Параметры:
-    - space_id: идентификатор пространства знаний
+    - knowledge_space_id: UUID пространства знаний (KnowledgeSpace.id)
     
     Возвращает:
     - VectorStoreIndex, связанный с коллекцией Qdrant для этого пространства
     """
     client = get_qdrant_client()
     # Убеждаемся, что коллекция существует
-    collection_name = get_or_create_collection(space_id, client)
+    collection_name = get_or_create_collection(knowledge_space_id, client)
     
     logger.info(
-        "[VECTOR_STORE] Getting index for space_id=%s collection_name=%s",
-        space_id,
+        "[VECTOR_STORE] Getting index for knowledge_space_id=%s collection_name=%s",
+        knowledge_space_id,
         collection_name,
     )
 
@@ -164,7 +155,7 @@ def get_vector_store_index(space_id: str) -> VectorStoreIndex:
     return index
 
 
-def add_documents_to_index(space_id: str, documents: list[LlamaDocument]) -> int:
+def add_documents_to_index(knowledge_space_id: uuid.UUID, documents: list[LlamaDocument]) -> int:
     """
     Добавляет документы в векторный индекс для указанного пространства знаний.
     
@@ -176,13 +167,13 @@ def add_documents_to_index(space_id: str, documents: list[LlamaDocument]) -> int
        - Документ становится доступным для поиска
     
     Параметры:
-    - space_id: идентификатор пространства знаний
+    - knowledge_space_id: UUID пространства знаний (KnowledgeSpace.id)
     - documents: список документов LlamaIndex для добавления
     
     Возвращает:
     - Количество успешно добавленных документов
     """
-    index = get_vector_store_index(space_id)
+    index = get_vector_store_index(knowledge_space_id)
     # Добавляем документы по одному
     # При добавлении автоматически создаются эмбеддинги и сохраняются в Qdrant
     for doc in documents:

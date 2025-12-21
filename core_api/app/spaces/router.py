@@ -75,12 +75,12 @@ async def create_space(
         await session.rollback()
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Space already exists") from exc
 
-    # Привязка к Qdrant: создаём (или проверяем) коллекцию для space_id сразу при создании space.
+    # Привязка к Qdrant: создаём (или проверяем) коллекцию для knowledge_space_id сразу при создании space.
     # Это гарантирует, что KnowledgeSpace соответствует индексу в Qdrant.
     try:
-        get_or_create_collection(payload.space_id)
+        get_or_create_collection(space.id)
     except Exception as exc:
-        logger.exception("[SPACES] Failed to create/check Qdrant collection for space_id=%s", payload.space_id)
+        logger.exception("[SPACES] Failed to create/check Qdrant collection for knowledge_space_id=%s", space.id)
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Qdrant is unavailable") from exc
 
     return _to_space_item(space)

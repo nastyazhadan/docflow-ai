@@ -2,58 +2,37 @@
 Unit тесты для vector_store модуля.
 """
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
+import uuid
+from unittest.mock import Mock, patch
 
 from core_api.app.rag.vector_store import (
-    sanitize_space_id,
     get_or_create_collection,
     get_qdrant_client,
 )
 
 
-def test_sanitize_space_id_allows_valid_chars():
-    """Тест: sanitize_space_id разрешает валидные символы."""
-    assert sanitize_space_id("test-space_123") == "test-space_123"
-    assert sanitize_space_id("TestSpace123") == "TestSpace123"
-    assert sanitize_space_id("space-123_test") == "space-123_test"
-
-
-def test_sanitize_space_id_replaces_invalid_chars():
-    """Тест: sanitize_space_id заменяет невалидные символы на _."""
-    assert sanitize_space_id("test space") == "test_space"
-    assert sanitize_space_id("test@space#123") == "test_space_123"
-    assert sanitize_space_id("test.space/123") == "test_space_123"
-    assert sanitize_space_id("test+space*123") == "test_space_123"
-    assert sanitize_space_id("тест-space") == "____-space"  # Кириллица заменяется посимвольно
-
-
-def test_sanitize_space_id_handles_special_cases():
-    """Тест: sanitize_space_id обрабатывает крайние случаи."""
-    assert sanitize_space_id("") == ""
-    assert sanitize_space_id("___") == "___"
-    assert sanitize_space_id("123") == "123"
-    assert sanitize_space_id("a-b_c") == "a-b_c"
-
-
 @patch("core_api.app.rag.vector_store.get_qdrant_client")
-def test_get_or_create_collection_uses_sanitized_id(mock_get_client):
-    """Тест: get_or_create_collection использует санитизированный space_id."""
+def test_get_or_create_collection_uses_uuid_hex(mock_get_client):
+    """Тест: get_or_create_collection использует UUID hex для имени коллекции."""
     mock_client = Mock()
     mock_get_client.return_value = mock_client
     
     # Мокируем get_collection для симуляции несуществующей коллекции
     mock_client.get_collection.side_effect = Exception("Collection not found")
     
-    # Вызываем с space_id, содержащим невалидные символы
-    result = get_or_create_collection("test space@123", mock_client)
+    # Создаём тестовый UUID
+    test_uuid = uuid.uuid4()
     
-    # Проверяем, что имя коллекции санитизировано
-    assert result == "space_test_space_123"
+    # Вызываем с UUID
+    result = get_or_create_collection(test_uuid, mock_client)
+    
+    # Проверяем, что имя коллекции формируется из UUID hex
+    expected_name = f"ks_{test_uuid.hex}"
+    assert result == expected_name
     # Проверяем, что create_collection был вызван с правильным именем
     mock_client.create_collection.assert_called_once()
     call_args = mock_client.create_collection.call_args
-    assert call_args[1]["collection_name"] == "space_test_space_123"
+    assert call_args[1]["collection_name"] == expected_name
 
 
 @patch("core_api.app.rag.vector_store.get_qdrant_client")
@@ -65,13 +44,16 @@ def test_get_or_create_collection_checks_existence_efficiently(mock_get_client):
     # Коллекция существует
     mock_client.get_collection.return_value = Mock()
     
-    result = get_or_create_collection("test-space", mock_client)
+    test_uuid = uuid.uuid4()
+    expected_name = f"ks_{test_uuid.hex}"
+    
+    result = get_or_create_collection(test_uuid, mock_client)
     
     # Проверяем, что использовался get_collection (не get_collections)
-    mock_client.get_collection.assert_called_once_with("space_test-space")
+    mock_client.get_collection.assert_called_once_with(expected_name)
     # Проверяем, что create_collection НЕ был вызван
     mock_client.create_collection.assert_not_called()
-    assert result == "space_test-space"
+    assert result == expected_name
 
 
 @patch("core_api.app.rag.vector_store.get_qdrant_client")
@@ -83,16 +65,19 @@ def test_get_or_create_collection_creates_when_not_exists(mock_get_client):
     # Коллекция не существует
     mock_client.get_collection.side_effect = Exception("Collection not found")
     
-    result = get_or_create_collection("test-space", mock_client)
+    test_uuid = uuid.uuid4()
+    expected_name = f"ks_{test_uuid.hex}"
+    
+    result = get_or_create_collection(test_uuid, mock_client)
     
     # Проверяем, что create_collection был вызван
     mock_client.create_collection.assert_called_once()
     call_args = mock_client.create_collection.call_args
-    assert call_args[1]["collection_name"] == "space_test-space"
+    assert call_args[1]["collection_name"] == expected_name
     # Проверяем параметры коллекции
     vectors_config = call_args[1]["vectors_config"]
     assert vectors_config.size == 768  # default embedding dimension
-    assert result == "space_test-space"
+    assert result == expected_name
 
 
 @patch("core_api.app.rag.vector_store.get_qdrant_client")
@@ -102,12 +87,15 @@ def test_get_or_create_collection_uses_cached_client(mock_get_client):
     mock_get_client.return_value = mock_client
     mock_client.get_collection.return_value = Mock()
     
+    test_uuid = uuid.uuid4()
+    expected_name = f"ks_{test_uuid.hex}"
+    
     # Вызываем без передачи клиента
-    result = get_or_create_collection("test-space")
+    result = get_or_create_collection(test_uuid)
     
     # Проверяем, что get_qdrant_client был вызван
     mock_get_client.assert_called_once()
-    assert result == "space_test-space"
+    assert result == expected_name
 
 
 def test_get_qdrant_client_is_cached():

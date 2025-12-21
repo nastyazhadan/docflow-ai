@@ -93,7 +93,7 @@ services:
       - OLLAMA_EMBEDDING_MODEL=${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       - EMBEDDING_DIMENSION=${EMBEDDING_DIMENSION:-768}
-      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_URL=${DATABASE_URL:-postgresql+asyncpg://docflow:docflow@postgres:5432/docflow}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:

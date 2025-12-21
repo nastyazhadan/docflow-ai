@@ -49,14 +49,16 @@ async def ingest_documents(
     пайплайн: scraper → cleaner → normalizer → indexer → core API.
 
     Параметры:
-    - space_id: идентификатор пространства знаний (из URL)
-                Каждое пространство имеет свою коллекцию в Qdrant (space_{space_id})
+    - space_id: идентификатор пространства знаний (space_key из URL)
+                Каждое пространство имеет свою коллекцию в Qdrant (ks_{knowledge_space_uuid})
     - request.documents: список нормализованных документов (чанков) для индексации
 
     Возвращает:
     - indexed: количество успешно проиндексированных документов
     """
     try:
+        knowledge_space_id: uuid.UUID | None = None
+        
         # Если запрос аутентифицирован — пространство должно существовать в БД для tenant.
         if principal is not None:
             if principal.role == UserRole.VIEWER:
@@ -71,8 +73,18 @@ async def ingest_documents(
             )
             if ks is None:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Space not found")
+            knowledge_space_id = ks.id
+        else:
+            # Для неаутентифицированных запросов (legacy) ищем по space_key без tenant
+            # Это для обратной совместимости с indexer-service
+            ks = await session.scalar(
+                select(KnowledgeSpace).where(KnowledgeSpace.space_key == space_id)
+            )
+            if ks is None:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Space not found")
+            knowledge_space_id = ks.id
 
-        return ingest_documents_use_case(space_id, request)
+        return ingest_documents_use_case(knowledge_space_id, request)
     except HTTPException:
         raise
     except Exception as exc:
@@ -98,7 +110,7 @@ async def query(
     3. Генерация: LLM генерирует ответ на основе контекста
 
     Параметры:
-    - space_id: идентификатор пространства для поиска (из URL)
+    - space_id: идентификатор пространства для поиска (space_key из URL)
     - request.query: текст вопроса пользователя
     - request.top_k: количество наиболее релевантных чанков для использования (по умолчанию 5)
 
@@ -107,6 +119,8 @@ async def query(
     - sources: список источников (чанков), использованных для генерации ответа
     """
     try:
+        knowledge_space_id: uuid.UUID | None = None
+        
         # Если запрос аутентифицирован — пространство должно существовать в БД для tenant.
         if principal is not None:
             tenant_uuid = uuid.UUID(principal.tenant_id)
@@ -118,8 +132,18 @@ async def query(
             )
             if ks is None:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Space not found")
+            knowledge_space_id = ks.id
+        else:
+            # Для неаутентифицированных запросов (legacy) ищем по space_key без tenant
+            # Это для обратной совместимости
+            ks = await session.scalar(
+                select(KnowledgeSpace).where(KnowledgeSpace.space_key == space_id)
+            )
+            if ks is None:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Space not found")
+            knowledge_space_id = ks.id
 
-        return query_documents_use_case(space_id, request)
+        return query_documents_use_case(knowledge_space_id, request)
     except HTTPException:
         raise
     except Exception as exc:
