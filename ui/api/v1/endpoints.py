@@ -4,14 +4,12 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-from typing import Any, Dict, Optional
-
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from pydantic import BaseModel
 
-from ui.core_api import core_request_json, get_core_api_base_url
-from ui.pages import LOGIN_HTML, SPACES_HTML, SOURCES_HTML, chat_html
+from ui.api.core_api import core_request_json, get_core_api_base_url
+from ui.html.pages import LOGIN_HTML, SPACES_HTML, SOURCES_HTML, chat_html
 
 logger = logging.getLogger(__name__)
 if not logger.handlers:
@@ -418,5 +416,3 @@ async def api_delete_source(source_id: str, request: Request) -> JSONResponse:
         raise HTTPException(status_code=status_code, detail=(data or body_text))
 
     return JSONResponse(content={}, status_code=status_code)
-
-
